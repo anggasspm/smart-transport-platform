@@ -1,18 +1,19 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-RUN docker-php-ext-install pdo pdo_mysql
-RUN a2enmod rewrite
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+RUN apt-get update && apt-get install -y     curl     unzip     && docker-php-ext-install pdo pdo_mysql     && apt-get clean     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
+
+COPY composer.json composer.lock* ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction 2>/dev/null || true
+
 COPY . .
-
-RUN composer install --no-dev --optimize-autoloader
-
-RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
-    /etc/apache2/sites-available/000-default.conf
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
