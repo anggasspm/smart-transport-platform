@@ -34,3 +34,13 @@ Thumbs.db
 
 # Database dump
 *.sql.bak
+
+# Passenger and Stop service logs
+.env
+vendor/
+writable/logs/
+writable/cache/
+writable/session/
+writable/uploads/
+writable/debugbar/
+*.log
