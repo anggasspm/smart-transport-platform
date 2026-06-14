@@ -266,6 +266,18 @@ services:
       - api-gateway
     networks:
       - smarttransport-net
+    
+  # IOT SIMULATORS
+  iot-simulator:
+    build:
+      context: ./iot
+      dockerfile: Dockerfile.simulator
+    container_name: smarttransport-iot-simulator
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    networks:
+      - smarttransport-net
 
   # MONITORING
   prometheus:
@@ -281,6 +293,23 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
+  
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: smarttransport-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - smarttransport-net
 
   grafana:
     image: grafana/grafana:10.2.0

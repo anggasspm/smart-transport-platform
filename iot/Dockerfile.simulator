@@ -7,9 +7,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY installasi.txt .
+RUN pip install --no-cache-dir -r installasi.txt
 
 COPY . .
 
-CMD ["python", "simulator.py"]
+CMD ["sh", "-c", "python simulator/gps-bus-simulator.py & python simulator/passenger-counter-simulator.py & wait"]
