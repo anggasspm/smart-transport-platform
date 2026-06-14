@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS oauth_clients (
 CREATE TABLE IF NOT EXISTS oauth_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     client_id VARCHAR(80) NOT NULL,
-    user_id INT NULL, -- NULL jika client_credentials grant
+    user_id INT NULL,
     access_token VARCHAR(255) NOT NULL,
     access_token_expires_at DATETIME NOT NULL,
     refresh_token VARCHAR(255) NULL,
@@ -102,6 +102,6 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL, -- Pastikan pakai password_hash
+    password VARCHAR(255) NOT NULL,
     role VARCHAR(20) DEFAULT 'passenger'
 );

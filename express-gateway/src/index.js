@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const PORT = 3000;
+const proxyRoutes = require('./routes/proxyRoutes');
 
 app.get('/health', (req, res) => {
     res.status(200).json({
@@ -17,6 +18,7 @@ app.get('/health', (req, res) => {
     });
 });
 
+app.use('/', proxyRoutes);
 app.listen(PORT, () => {
 console.log('API Gateway running on port ${PORT}');
 });
