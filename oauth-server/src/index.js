@@ -44,6 +44,6 @@ app.post('/oauth/introspect', async (req, res) => {
     res.json({ active: true, message: "Token valid" });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`OAuth Server running on port ${PORT}`);
 });

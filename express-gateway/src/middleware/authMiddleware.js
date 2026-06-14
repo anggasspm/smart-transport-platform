@@ -9,7 +9,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     try {
-        const response = await axios.post('http://localhost:3002/oauth/introspect', {
+        const response = await axios.post('http://oauth-server:3002/oauth/introspect', {
             token: authHeader.split(' ')[1]
         });
 
