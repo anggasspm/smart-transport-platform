@@ -1,18 +1,19 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('../middleware/authMiddleware');
 
-router.use('/api/passengers', createProxyMiddleware({ 
+router.use('/api/passengers', authMiddleware, createProxyMiddleware({ 
     target: 'http://localhost:8000', 
     changeOrigin: true 
 }));
 
-router.use('/api/buses', createProxyMiddleware({ 
+router.use('/api/buses', authMiddleware, createProxyMiddleware({ 
     target: 'http://localhost:8001', 
     changeOrigin: true 
 }));
 
-router.use('/api/stops', createProxyMiddleware({ 
+router.use('/api/stops', authMiddleware, createProxyMiddleware({ 
     target: 'http://localhost:8002', 
     changeOrigin: true 
 }));
