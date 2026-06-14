@@ -4,12 +4,10 @@ use CodeIgniter\Model;
 
 class PassengerModel extends Model
 {
-    protected $table      = 'passenger_passengers';
-    protected $primaryKey = 'id';
+    protected $table         = 'passenger_passengers';
+    protected $primaryKey    = 'id';
     protected $allowedFields = ['name', 'email', 'phone', 'card_number', 'balance', 'zone_id', 'password', 'role'];
-    protected $useTimestamps = true;
-    protected $createdField  = 'created_at';
-    protected $updatedField  = '';
+    protected $useTimestamps = false;
 
     public function findByEmail(string $email): ?array
     {

@@ -7,9 +7,7 @@ class NotificationModel extends Model
     protected $table         = 'passenger_notifications';
     protected $primaryKey    = 'id';
     protected $allowedFields = ['passenger_id', 'title', 'body', 'type', 'is_read'];
-    protected $useTimestamps = true;
-    protected $createdField  = 'created_at';
-    protected $updatedField  = '';
+    protected $useTimestamps = false;
 
     public function getByPassenger(int $passengerId): array
     {
@@ -20,10 +18,8 @@ class NotificationModel extends Model
 
     public function markAsRead(int $id): bool
     {
-        // Cek dulu apakah notifikasi ada
         $notif = $this->find($id);
         if (!$notif) return false;
-
         return $this->update($id, ['is_read' => 1]);
     }
 }
