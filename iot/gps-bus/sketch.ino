@@ -10,6 +10,8 @@ const char* mqtt_server = "broker.hivemq.com";
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+const int BUS_ID = 1;
+
 // posisi bis
 int currentRuteKe = 0;
 
@@ -40,8 +42,27 @@ void setupWifi() {
 }
 
 void reconnect() {
+
+    char clientId[30];
+
+    sprintf(
+        clientId,
+        "BUS_%d",
+        BUS_ID
+    );
+
     while (!client.connected()) {
-        client.connect("BUS01");
+
+        if(client.connect(clientId)) {
+
+        Serial.println("MQTT sudah konek");
+
+        } else {
+
+        delay(1000);
+
+        }
+
     }
 }
 
@@ -62,12 +83,11 @@ void loop() {
 
     StaticJsonDocument<256> doc;
 
-    doc["bus_id"] = 1;
+    doc["bus_id"] = BUS_ID;
     doc["lat"] = routeLat[currentRuteKe];
     doc["lng"] = routeLng[currentRuteKe];
     doc["speed_kmh"] = random(20,50);
     doc["heading"] = random(0,360);
-    doc["engine_temp"] = 78;
     doc["route_id"] = 1;
     doc["timestamp"] = millis();
 
@@ -75,8 +95,16 @@ void loop() {
 
     serializeJson(doc, payload);
 
+    char topic[50];
+
+    sprintf(
+        topic,
+        "city/bus/%d/gps",
+        BUS_ID
+    );
+
     client.publish(
-        "city/bus/1/gps",
+        topic,
         payload
     );
 
