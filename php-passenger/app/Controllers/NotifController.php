@@ -19,13 +19,22 @@ class NotifController extends BaseController
 
     public function index(): ResponseInterface
     {
-        $passengerId = (int)($this->request->getHeaderLine('X-Passenger-Id') ?: 1);
-        $model       = new NotificationModel();
+        $passengerId = (int)($this->request->getHeaderLine('X-User-Id') ?: 0);
+        if ($passengerId === 0) {
+            return $this->respond(401, null, 'Unauthorized');
+        }
+
+        $model = new NotificationModel();
         return $this->respond(200, $model->getByPassenger($passengerId), 'OK');
     }
 
     public function markRead(int $id): ResponseInterface
     {
+        $passengerId = (int)($this->request->getHeaderLine('X-User-Id') ?: 0);
+        if ($passengerId === 0) {
+            return $this->respond(401, null, 'Unauthorized');
+        }
+
         $model   = new NotificationModel();
         $updated = $model->markAsRead($id);
         if (!$updated) return $this->respond(404, null, 'Notification not found');
