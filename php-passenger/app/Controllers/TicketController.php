@@ -20,8 +20,13 @@ class TicketController extends BaseController
 
     public function store(): ResponseInterface
     {
-        $passengerId = (int)($this->request->getHeaderLine('X-Passenger-Id') ?: 1);
-        $data        = $this->request->getJSON(true) ?? [];
+        // Gateway inject X-User-Id setelah verifikasi JWT
+        $passengerId = (int)($this->request->getHeaderLine('X-User-Id') ?: 0);
+        if ($passengerId === 0) {
+            return $this->respond(401, null, 'Unauthorized');
+        }
+
+        $data = $this->request->getJSON(true) ?? [];
 
         if (empty($data['route_id']))       return $this->respond(422, null, 'route_id is required');
         if (empty($data['origin_stop_id'])) return $this->respond(422, null, 'origin_stop_id is required');
@@ -46,9 +51,13 @@ class TicketController extends BaseController
 
     public function index(): ResponseInterface
     {
-        $passengerId = (int)($this->request->getHeaderLine('X-Passenger-Id') ?: 1);
-        $model       = new TicketModel();
-        $tickets     = $model->getByPassenger($passengerId);
+        $passengerId = (int)($this->request->getHeaderLine('X-User-Id') ?: 0);
+        if ($passengerId === 0) {
+            return $this->respond(401, null, 'Unauthorized');
+        }
+
+        $model   = new TicketModel();
+        $tickets = $model->getByPassenger($passengerId);
         return $this->respond(200, $tickets, 'OK');
     }
 }
