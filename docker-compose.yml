@@ -22,8 +22,8 @@ services:
       MYSQL_DATABASE: smarttransport
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./Database/sqema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./Database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     networks:
       - smarttransport-net
     healthcheck:
@@ -168,6 +168,7 @@ services:
     ports:
       - "8001:8001"
     environment:
+      CI_ENVIRONMENT: production
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: smarttransport
@@ -177,6 +178,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
+      RABBITMQ_EXCHANGE: city.events
       JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
     depends_on:
       mysql:
@@ -190,6 +192,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   php-stop:
     build:
