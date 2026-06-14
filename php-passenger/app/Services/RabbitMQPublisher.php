@@ -10,10 +10,10 @@ class RabbitMQPublisher
     {
         try {
             $conn = new AMQPStreamConnection(
-                getenv('RABBITMQ_HOST') ?: 'rabbitmq',
-                (int)(getenv('RABBITMQ_PORT') ?: 5672),
-                getenv('RABBITMQ_USER') ?: 'guest',
-                getenv('RABBITMQ_PASS') ?: 'guest'
+                env('RABBITMQ_HOST', 'rabbitmq'),
+                (int) env('RABBITMQ_PORT', 5672),
+                env('RABBITMQ_USER', 'guest'),
+                env('RABBITMQ_PASS', 'guest')
             );
 
             $channel = $conn->channel();
@@ -28,12 +28,10 @@ class RabbitMQPublisher
             );
 
             $channel->basic_publish($msg, 'city.events', $routingKey);
-
             $channel->close();
             $conn->close();
 
         } catch (\Exception $e) {
-            // Fallback log kalau RabbitMQ belum ready
             $log = date('Y-m-d H:i:s') . " | $routingKey | " . json_encode($payload) . "\n";
             file_put_contents(WRITEPATH . 'logs/rabbitmq.log', $log, FILE_APPEND);
         }
