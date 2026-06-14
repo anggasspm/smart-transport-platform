@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "author": "Fauzan Alfarisi",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 38.4, "left": -23.96, "attrs": {} },
+    {
+      "type": "board-ssd1306",
+      "id": "oled1",
+      "top": 99.14,
+      "left": -172.57,
+      "attrs": { "i2cAddress": "0x3c" }
+    },
+    { "type": "wokwi-hc-sr04", "id": "ultrasonic1", "top": -8.1, "left": 120.7, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "ultrasonic2", "top": 164.7, "left": 120.7, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "oled1:SDA", "esp:21", "green", [ "v9.6", "h182.47" ] ],
+    [ "oled1:SCL", "esp:22", "green", [ "v-19.2", "h192.3" ] ],
+    [ "ultrasonic1:VCC", "esp:5V", "red", [ "v28.8", "h-38.4" ] ],
+    [ "ultrasonic1:GND", "esp:GND.1", "black", [ "v38.4", "h-241.2" ] ],
+    [ "ultrasonic1:TRIG", "esp:5", "green", [ "v19.2", "h-125.2" ] ],
+    [ "ultrasonic1:ECHO", "esp:18", "green", [ "v57.6", "h-135.2" ] ],
+    [ "ultrasonic2:VCC", "esp:5V", "red", [ "v0", "h-211.2" ] ],
+    [ "ultrasonic2:GND", "esp:GND.1", "black", [ "v9.6", "h-250.8", "v-76.8" ] ],
+    [ "ultrasonic2:TRIG", "esp:17", "green", [ "v19.2", "h-125.2" ] ],
+    [ "ultrasonic2:ECHO", "esp:16", "green", [ "v28.8", "h-135.2" ] ],
+    [ "oled1:GND", "esp:GND.1", "black", [ "v-28.8", "h96", "v115.2" ] ],
+    [ "oled1:VCC", "esp:3V3", "red", [ "v-38.4", "h105.75" ] ]
+  ],
+  "dependencies": {}
+}
