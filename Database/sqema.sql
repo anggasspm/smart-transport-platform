@@ -77,3 +77,31 @@ CREATE TABLE IF NOT EXISTS stop_alerts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_stop_id (stop_id)
 );
+
+
+CREATE TABLE IF NOT EXISTS oauth_clients (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id VARCHAR(80) NOT NULL,
+    client_secret VARCHAR(80) NOT NULL,
+    redirect_uri VARCHAR(255) NOT NULL,
+    grant_types VARCHAR(80) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    client_id VARCHAR(80) NOT NULL,
+    user_id INT NULL, -- NULL jika client_credentials grant
+    access_token VARCHAR(255) NOT NULL,
+    access_token_expires_at DATETIME NOT NULL,
+    refresh_token VARCHAR(255) NULL,
+    refresh_token_expires_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL, -- Pastikan pakai password_hash
+    role VARCHAR(20) DEFAULT 'passenger'
+);
