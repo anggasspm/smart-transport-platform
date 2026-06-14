@@ -1,0 +1,25 @@
+<?php
+
+/**
+ * CodeIgniter
+ *
+ * spark - CLI tool for CodeIgniter 4
+ */
+
+// Ensure we're running from project root
+chdir(__DIR__);
+
+// Path to the front controller
+define('FCPATH', __DIR__ . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR);
+
+// The path to the project root
+define('ROOTPATH', __DIR__ . DIRECTORY_SEPARATOR);
+
+// Load the bootstrap
+require realpath(__DIR__ . '/vendor/codeigniter4/framework/system/bootstrap.php')
+    ?? realpath(__DIR__ . '/system/bootstrap.php');
+
+$app = Config\Services::codeigniter();
+$app->initialize();
+$app->setContext('php-cli');
+$app->run();
