@@ -3,7 +3,7 @@ import random
 import time
 import paho.mqtt.client as mqtt
 
-BROKER = "broker.hivemq.com"
+BROKER = "mosquitto"
 PORT = 1883
 
 KAPASITAS_BUS = 40
