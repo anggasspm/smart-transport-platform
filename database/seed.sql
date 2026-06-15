@@ -7,7 +7,7 @@ INSERT INTO stop_stops (name, route_id, lat, lng, zone_id, sequence_order) VALUE
 ('Halte Blok M', 3, -6.2446, 106.7986, 3, 1),
 ('Halte Sudirman', 3, -6.2088, 106.8230, 3, 2),
 ('Halte Kuningan', 4, -6.2250, 106.8310, 2, 1),
-('Halte Dukuh Atas', 4, -6.2015, 106.8230, 1, 2),s
+('Halte Dukuh Atas', 4, -6.2015, 106.8230, 1, 2),
 ('Halte Tanah Abang', 5, -6.1861, 106.8118, 1, 1),
 ('Halte Palmerah', 5, -6.2050, 106.7971, 3, 2);
 
@@ -119,4 +119,4 @@ ON DUPLICATE KEY UPDATE
     route_id     = VALUES(route_id),
     capacity     = VALUES(capacity),
     status       = VALUES(status),
-    driver_name  = VALUES(driver_name);
+    driver_name  = VALUES(driver_name);
