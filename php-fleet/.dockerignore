@@ -1,0 +1,21 @@
+# Exclude local vendor — composer install inside Docker generates the correct one
+vendor/
+
+# Never ship .env into image; entrypoint generates it at runtime
+.env
+
+# Git & IDE
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Test coverage artifacts
+/tests/coverage*
+/phpunit.xml
+/results/
+
+# OS junk
+.DS_Store
+Thumbs.db

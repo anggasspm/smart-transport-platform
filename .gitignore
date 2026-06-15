@@ -1,2 +1,46 @@
-.venv
-data
+# Environment
+.env
+*.env.local
+
+# Dependencies
+node_modules/
+vendor/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ML Models
+python-ml-service/models/*.pkl
+python-ml-service/data/*.csv
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Database dump
+*.sql.bak
+
+# Passenger and Stop service logs
+.env
+vendor/
+writable/logs/
+writable/cache/
+writable/session/
+writable/uploads/
+writable/debugbar/
+*.log

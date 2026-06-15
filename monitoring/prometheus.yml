@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:3000']
+    metrics_path: '/metrics'
+
+  - job_name: 'php-passenger'
+    static_configs:
+      - targets: ['php-passenger:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'php-fleet'
+    static_configs:
+      - targets: ['php-fleet:8001']
+    metrics_path: '/metrics'
+
+  - job_name: 'php-stop'
+    static_configs:
+      - targets: ['php-stop:8002']
+    metrics_path: '/metrics'
+
+  - job_name: 'python-ml'
+    static_configs:
+      - targets: ['python-ml:5000']
+    metrics_path: '/metrics'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    metrics_path: '/metrics'
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    metrics_path: '/metrics'

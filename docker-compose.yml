@@ -1,0 +1,334 @@
+version: "3.9"
+
+networks:
+  smarttransport-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  rabbitmq-data:
+  grafana-data:
+  mosquitto-data:
+
+services:
+
+  # INFRA 
+  mysql:
+    image: mysql:8.0
+    container_name: smarttransport-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      MYSQL_DATABASE: smarttransport
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./Database/sqema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./Database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: smarttransport-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-adminpass}
+    ports:
+      - "5673:5672"
+      - "15673:15672"    
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: smarttransport-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./iot/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto-data:/mosquitto/data
+    networks:
+      - smarttransport-net
+
+  # GATEWAY & AUTH 
+  api-gateway:
+    build:
+      context: ./express-gateway
+      dockerfile: Dockerfile
+    container_name: smarttransport-gateway
+    restart: unless-stopped
+    ports:
+      - "9000:3000"  
+    environment:
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      OAUTH_SERVER_URL: http://oauth-server:3002
+      PASSENGER_SERVICE_URL: http://php-passenger:8000
+      FLEET_SERVICE_URL: http://php-fleet:8001
+      STOP_SERVICE_URL: http://php-stop:8002
+      PYTHON_ML_URL: http://python-ml:5000
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  oauth-server:
+    build:
+      context: ./oauth-server
+      dockerfile: Dockerfile
+    container_name: smarttransport-oauth
+    restart: unless-stopped
+    ports:
+      - "3002:3002" 
+    environment:
+      PORT: 3002
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: smarttransport
+      DB_USER: ${DB_USER:-root}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD:-rootpass}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PHP SERVICES 
+  php-passenger:
+    build:
+      context: ./php-passenger
+      dockerfile: Dockerfile
+    container_name: smarttransport-passenger
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: smarttransport
+      DB_USER: ${DB_USER:-root}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  php-fleet:
+    build:
+      context: ./php-fleet
+      dockerfile: Dockerfile
+    container_name: smarttransport-fleet
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      CI_ENVIRONMENT: production
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: smarttransport
+      DB_USER: ${DB_USER:-root}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
+      RABBITMQ_EXCHANGE: city.events
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  php-stop:
+    build:
+      context: ./php-stop
+      dockerfile: Dockerfile
+    container_name: smarttransport-stop
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: smarttransport
+      DB_USER: ${DB_USER:-root}
+      DB_PASS: ${MYSQL_ROOT_PASSWORD:-rootpass}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
+      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ML SERVICE 
+  python-ml:
+    build:
+      context: ./python-ml-service
+      dockerfile: Dockerfile
+    container_name: smarttransport-ml
+    restart: unless-stopped
+    ports:
+      - "5000:5000" 
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
+      MODEL_PATH: models/smarttransport_models.pkl
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - smarttransport-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # IOT LAYER 
+  node-red:
+    image: nodered/node-red:3.1
+    container_name: smarttransport-nodered
+    restart: unless-stopped
+    ports:
+      - "1880:1880" 
+    volumes:
+      - ./iot/node-red-data:/data
+    environment:
+      TZ: Asia/Jakarta
+    depends_on:
+      - mosquitto
+      - api-gateway
+    networks:
+      - smarttransport-net
+    
+  # IOT SIMULATORS
+  iot-simulator:
+    build:
+      context: ./iot
+      dockerfile: Dockerfile.simulator
+    container_name: smarttransport-iot-simulator
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    networks:
+      - smarttransport-net
+
+  # MONITORING
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: smarttransport-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"     
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - smarttransport-net
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+  
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    container_name: smarttransport-cadvisor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    networks:
+      - smarttransport-net
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: smarttransport-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"    
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - smarttransport-net
