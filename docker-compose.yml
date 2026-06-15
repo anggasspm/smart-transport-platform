@@ -41,8 +41,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-adminpass}
     ports:
-      - "15672:15672" 
-      - "5672:5672"     
+      - "5673:5672"
+      - "15673:15672"    
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -74,7 +74,7 @@ services:
     container_name: smarttransport-gateway
     restart: unless-stopped
     ports:
-      - "3000:3000"  
+      - "9000:3000"  
     environment:
       PORT: 3000
       JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
