@@ -14,7 +14,9 @@
         "ext-intl": "*",
         "ext-mbstring": "*",
         "laminas/laminas-escaper": "^2.18",
-        "psr/log": "^3.0"
+        "psr/log": "^3.0",
+        "php-amqplib/php-amqplib": "^3.6"
+
     },
     "require-dev": {
         "codeigniter/coding-standard": "^1.7",
