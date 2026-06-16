@@ -11,8 +11,8 @@
     "keepalive": "60",
     "cleansession": true,
     "credentials": {
-      "user": "",
-      "password": ""
+      "user": "iot_user",
+      "password": "iot_password123"
     }
   },
   {
@@ -38,9 +38,28 @@
     "id": "gps_transform",
     "type": "function",
     "z": "tab_iot_bridge",
-    "func": "const p = msg.payload;\n\nmsg.payload = {\n    bus_id: p.bus_id,\n    lat: p.lat,\n    lng: p.lng,\n    speed_kmh: p.speed_kmh,\n    heading: p.heading,\n    route_id: p.route_id,\n    engine_temp: p.engine_temp != null ? p.engine_temp : null,\n    recorded_at: new Date().toISOString()\n};\n\nmsg.queueFile = '/data/queue/gps-queue.jsonl';\n\nreturn msg;",
+    "name": "Transform GPS",
+    "func": "const p = msg.payload;\n\nmsg.payload = {\n    bus_id:      p.bus_id,\n    lat:         p.lat,\n    lng:         p.lng,\n    speed_kmh:   p.speed_kmh,\n    heading:     p.heading,\n    route_id:    p.route_id,\n    engine_temp: p.engine_temp != null ? p.engine_temp : null,\n    timestamp:   p.timestamp\n};\n\nmsg.queueFile = '/data/queue/gps-queue.jsonl';\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + env.get('IOT_TOKEN')\n};\n\nreturn msg;",
     "outputs": 1,
-    "x": 410,
+    "x": 380,
+    "y": 100,
+    "wires": [["gps_set_headers"]]
+  },
+  {
+    "id": "gps_set_headers",
+    "type": "change",
+    "z": "tab_iot_bridge",
+    "name": "Set Headers",
+    "rules": [
+      {
+        "t": "set",
+        "p": "headers",
+        "pt": "msg",
+        "to": "{\n  \"Content-Type\": \"application/json\",\n  \"Authorization\": \"Bearer \" & $env('IOT_TOKEN')\n}",
+        "tot": "jsonata"
+      }
+    ],
+    "x": 570,
     "y": 100,
     "wires": [["gps_http_request"]]
   },
@@ -48,6 +67,7 @@
     "id": "gps_http_request",
     "type": "http request",
     "z": "tab_iot_bridge",
+    "name": "POST /iot/gps",
     "method": "POST",
     "ret": "obj",
     "paytoqs": "ignore",
@@ -56,21 +76,7 @@
     "persist": false,
     "proxy": "",
     "authType": "",
-    "headers": [
-      {
-        "keyType": "other",
-        "keyValue": "Content-Type",
-        "valueType": "other",
-        "valueValue": "application/json"
-      },
-      {
-        "keyType": "other",
-        "keyValue": "Authorization",
-        "valueType": "env",
-        "valueValue": "IOT_GATEWAY_TOKEN"
-      }
-    ],
-    "x": 660,
+    "x": 760,
     "y": 100,
     "wires": [["gps_debug"]]
   },
@@ -78,12 +84,14 @@
     "id": "gps_debug",
     "type": "debug",
     "z": "tab_iot_bridge",
+    "name": "GPS Response",
     "active": true,
     "tosidebar": true,
     "console": false,
-    "tostatus": false,
-    "complete": "true",
-    "x": 880,
+    "tostatus": true,
+    "complete": "payload.code",
+    "targetType": "msg",
+    "x": 960,
     "y": 100,
     "wires": []
   },
@@ -96,7 +104,7 @@
     "qos": "1",
     "datatype": "json",
     "broker": "broker_mosquitto",
-    "x": 170,
+    "x": 160,
     "y": 220,
     "wires": [["pax_transform"]]
   },
@@ -104,9 +112,28 @@
     "id": "pax_transform",
     "type": "function",
     "z": "tab_iot_bridge",
-    "func": "const p = msg.payload;\n\nmsg.payload = {\n    bus_id: p.bus_id,\n    stop_id: p.stop_id,\n    boarded: p.boarded,\n    alighted: p.alighted,\n    current_load: p.current_load,\n    capacity: p.capacity,\n    recorded_at: new Date().toISOString()\n};\n\nmsg.queueFile = '/data/queue/passenger-queue.jsonl';\n\nreturn msg;",
+    "name": "Transform Passenger",
+    "func": "const p = msg.payload;\n\nmsg.payload = {\n    bus_id:       p.bus_id,\n    stop_id:      p.stop_id,\n    boarded:      p.boarded,\n    alighted:     p.alighted,\n    current_load: p.current_load,\n    capacity:     p.capacity,\n    timestamp:    p.timestamp\n};\n\nmsg.queueFile = '/data/queue/passenger-queue.jsonl';\n\nreturn msg;",
     "outputs": 1,
-    "x": 430,
+    "x": 400,
+    "y": 220,
+    "wires": [["pax_set_headers"]]
+  },
+  {
+    "id": "pax_set_headers",
+    "type": "change",
+    "z": "tab_iot_bridge",
+    "name": "Set Headers",
+    "rules": [
+      {
+        "t": "set",
+        "p": "headers",
+        "pt": "msg",
+        "to": "{\n  \"Content-Type\": \"application/json\",\n  \"Authorization\": \"Bearer \" & $env('IOT_TOKEN')\n}",
+        "tot": "jsonata"
+      }
+    ],
+    "x": 600,
     "y": 220,
     "wires": [["pax_http_request"]]
   },
@@ -114,6 +141,7 @@
     "id": "pax_http_request",
     "type": "http request",
     "z": "tab_iot_bridge",
+    "name": "POST /iot/passengers",
     "method": "POST",
     "ret": "obj",
     "paytoqs": "ignore",
@@ -122,21 +150,7 @@
     "persist": false,
     "proxy": "",
     "authType": "",
-    "headers": [
-      {
-        "keyType": "other",
-        "keyValue": "Content-Type",
-        "valueType": "other",
-        "valueValue": "application/json"
-      },
-      {
-        "keyType": "other",
-        "keyValue": "Authorization",
-        "valueType": "env",
-        "valueValue": "IOT_GATEWAY_TOKEN"
-      }
-    ],
-    "x": 690,
+    "x": 800,
     "y": 220,
     "wires": [["pax_debug"]]
   },
@@ -144,12 +158,14 @@
     "id": "pax_debug",
     "type": "debug",
     "z": "tab_iot_bridge",
+    "name": "PAX Response",
     "active": true,
     "tosidebar": true,
     "console": false,
-    "tostatus": false,
-    "complete": "true",
-    "x": 920,
+    "tostatus": true,
+    "complete": "payload.code",
+    "targetType": "msg",
+    "x": 1000,
     "y": 220,
     "wires": []
   },
@@ -158,9 +174,10 @@
     "id": "catch_gateway_down",
     "type": "catch",
     "z": "tab_iot_bridge",
+    "name": "Catch Gateway Error",
     "scope": ["gps_http_request", "pax_http_request"],
     "uncaught": false,
-    "x": 200,
+    "x": 220,
     "y": 360,
     "wires": [["build_queue_line"]]
   },
@@ -168,7 +185,8 @@
     "id": "build_queue_line",
     "type": "function",
     "z": "tab_iot_bridge",
-    "func": "const entry = {\n    timestamp: new Date().toISOString(),\n    target: msg.url,\n    error: msg.error ? msg.error.message : 'unknown error',\n    payload: msg.payload\n};\n\nmsg.payload = JSON.stringify(entry) + '\\n';\n\nif (!msg.queueFile) {\n    msg.queueFile = '/data/queue/unknown-queue.jsonl';\n}\n\nmsg.filename = msg.queueFile;\nmsg.appendNewline = false;\n\nreturn msg;",
+    "name": "Build Queue Entry",
+    "func": "const entry = {\n    timestamp: new Date().toISOString(),\n    target:    msg.url || 'unknown',\n    error:     msg.error ? msg.error.message : 'unknown error',\n    payload:   msg.payload\n};\n\nmsg.payload  = JSON.stringify(entry) + '\\n';\n\nif (!msg.queueFile) {\n    msg.queueFile = '/data/queue/unknown-queue.jsonl';\n}\n\nmsg.filename       = msg.queueFile;\nmsg.appendNewline  = false;\n\nreturn msg;",
     "outputs": 1,
     "x": 470,
     "y": 360,
@@ -178,31 +196,15 @@
     "id": "write_queue_file",
     "type": "file",
     "z": "tab_iot_bridge",
+    "name": "Write to Queue",
     "filename": "",
     "filenameType": "msg",
     "appendNewline": false,
     "createDir": true,
     "overwriteFile": "false",
     "encoding": "none",
-    "x": 720,
+    "x": 700,
     "y": 360,
     "wires": [[]]
-  },
-
-  {
-    "id": "inject_requeue",
-    "type": "inject",
-    "z": "tab_iot_bridge",
-    "props": [{ "p": "payload" }],
-    "repeat": "60",
-    "crontab": "",
-    "once": false,
-    "onceDelay": 0.1,
-    "topic": "",
-    "payload": "",
-    "payloadType": "date",
-    "x": 180,
-    "y": 460,
-    "wires": [["requeue_note"]]
   }
 ]
