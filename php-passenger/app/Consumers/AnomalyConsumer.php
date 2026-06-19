@@ -1,5 +1,5 @@
 <?php
-// Jalankan dari root CI4: php app/Consumers/AnomalyConsumer.php
+
 define('FCPATH', __DIR__ . '/../../public/');
 chdir(__DIR__ . '/../..');
 require 'vendor/autoload.php';
@@ -24,7 +24,7 @@ $channel->queue_declare('anomaly.alert', false, true, false, false);
 $channel->queue_bind('anomaly.alert', 'city.events', 'anomaly.alert');
 
 $dbHost = $_ENV['database.default.hostname'] ?? 'mysql';
-$dbName = $_ENV['database.default.database'] ?? 'smartcity';
+$dbName = $_ENV['database.default.database'] ?? 'smarttransport';
 $dbUser = $_ENV['database.default.username'] ?? 'root';
 $dbPass = $_ENV['database.default.password'] ?? '';
 
