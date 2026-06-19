@@ -1,0 +1,24 @@
+{
+  "baseline_speed": 50,
+  "speed_clip_lower": 1.5,
+  "delay_thresholds": {
+    "Late": 5,
+    "Severe": 15
+  },
+  "binary_classes": [
+    "OnTime",
+    "Delayed"
+  ],
+  "features_regressor": [
+    "hour",
+    "day_of_week",
+    "corridor",
+    "dtd"
+  ],
+  "features_classifier": [
+    "hour",
+    "day_of_week",
+    "corridor",
+    "dtd"
+  ]
+}
