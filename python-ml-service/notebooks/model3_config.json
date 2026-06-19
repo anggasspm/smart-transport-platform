@@ -1,0 +1,16 @@
+{
+  "contamination": 0.05,
+  "features": [
+    "speed_kmh",
+    "passenger_count",
+    "engine_temp_c",
+    "rolling_mean_1h",
+    "z_score"
+  ],
+  "anomaly_label_mapping": {
+    "IF_output_-1": 1,
+    "IF_output_1": 0
+  },
+  "scaler": "scaler_model3.pkl",
+  "model": "isolation_forest_model3.pkl"
+}
