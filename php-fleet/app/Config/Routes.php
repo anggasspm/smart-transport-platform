@@ -48,4 +48,7 @@ $routes->group('api', function ($routes) {
     $routes->patch('incidents/(:num)',      'Api\IncidentController::update/$1');
     $routes->patch('incidents/(:num)/resolve', 'Api\IncidentController::resolve/$1');
     $routes->delete('incidents/(:num)',     'Api\IncidentController::delete/$1');
+
+    // Metrics
+    $routes->get('/metrics', 'Api\MetricsController::index');
 });
