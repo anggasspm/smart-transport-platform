@@ -1,0 +1,257 @@
+[
+    {
+        "id": "tab_iot_bridge",
+        "type": "tab",
+        "label": "IoT Smart Public Transport",
+        "disabled": false
+    },
+    {
+        "id": "broker_mosquitto",
+        "type": "mqtt-broker",
+        "name": "",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "nodered_bridge",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+
+    {
+        "id": "gps_mqtt_in",
+        "type": "mqtt in",
+        "z": "tab_iot_bridge",
+        "name": "Bus GPS MQTT Subscribe",
+        "topic": "city/bus/+/gps",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "broker_mosquitto",
+        "inputs": 0,
+        "x": 160,
+        "y": 100,
+        "wires": [
+            [
+                "gps_transform"
+            ]
+        ]
+    },
+    {
+        "id": "gps_transform",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Transform GPS",
+        "func": "const p = msg.payload;\nmsg.payload = {\n    bus_id:      p.bus_id,\n    lat:         p.lat,\n    lng:         p.lng,\n    speed_kmh:   p.speed_kmh,\n    heading:     p.heading,\n    route_id:    p.route_id,\n    passenger_count: p.passenger_count != null ? p.passenger_count : null,\n    engine_temp: p.engine_temp != null ? p.engine_temp : null,\n    timestamp:   new Date().toISOString()\n};\nmsg.queueFile = '/data/queue/gps-queue.jsonl';\nreturn msg;",
+        "outputs": 1,
+        "x": 380,
+        "y": 100,
+        "wires": [
+            [
+                "gps_set_headers"
+            ]
+        ]
+    },
+    {
+        "id": "gps_set_headers",
+        "type": "change",
+        "z": "tab_iot_bridge",
+        "name": "Set Headers",
+        "rules": [
+            {
+                "t": "set",
+                "p": "headers",
+                "pt": "msg",
+                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
+                "tot": "json"
+            }
+        ],
+        "x": 570,
+        "y": 100,
+        "wires": [
+            [
+                "gps_http_request"
+            ]
+        ]
+    },
+    {
+        "id": "gps_http_request",
+        "type": "http request",
+        "z": "tab_iot_bridge",
+        "name": "POST /iot/gps",
+        "method": "POST",
+        "ret": "obj",
+        "url": "http://api-gateway:3000/iot/gps",
+        "x": 760,
+        "y": 100,
+        "wires": [
+            [
+                "gps_debug"
+            ]
+        ]
+    },
+    {
+        "id": "gps_debug",
+        "type": "debug",
+        "z": "tab_iot_bridge",
+        "name": "GPS Response",
+        "active": true,
+        "tosidebar": true,
+        "tostatus": true,
+        "complete": "payload",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 960,
+        "y": 100,
+        "wires": []
+    },
+
+    {
+        "id": "pax_mqtt_in",
+        "type": "mqtt in",
+        "z": "tab_iot_bridge",
+        "name": "Halte Passenger MQTT Subscribe",
+        "topic": "city/stop/+/passengers",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "broker_mosquitto",
+        "inputs": 0,
+        "x": 160,
+        "y": 220,
+        "wires": [
+            [
+                "pax_transform"
+            ]
+        ]
+    },
+    {
+        "id": "pax_transform",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Transform Passenger",
+        "func": "const p = msg.payload;\nmsg.payload = {\n    stop_id:      p.stop_id,\n    current_load: p.current_load\n};\nmsg.queueFile = '/data/queue/passenger-queue.jsonl';\nreturn msg;",
+        "outputs": 1,
+        "x": 400,
+        "y": 220,
+        "wires": [
+            [
+                "pax_set_headers"
+            ]
+        ]
+    },
+    {
+        "id": "pax_set_headers",
+        "type": "change",
+        "z": "tab_iot_bridge",
+        "name": "Set Headers",
+        "rules": [
+            {
+                "t": "set",
+                "p": "headers",
+                "pt": "msg",
+                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
+                "tot": "json"
+            }
+        ],
+        "x": 600,
+        "y": 220,
+        "wires": [
+            [
+                "pax_http_request"
+            ]
+        ]
+    },
+    {
+        "id": "pax_http_request",
+        "type": "http request",
+        "z": "tab_iot_bridge",
+        "name": "POST /iot/passengers",
+        "method": "POST",
+        "ret": "obj",
+        "url": "http://api-gateway:3000/iot/passengers",
+        "x": 800,
+        "y": 220,
+        "wires": [
+            [
+                "pax_debug"
+            ]
+        ]
+    },
+    {
+        "id": "pax_debug",
+        "type": "debug",
+        "z": "tab_iot_bridge",
+        "name": "PAX Response",
+        "active": true,
+        "tosidebar": true,
+        "tostatus": true,
+        "complete": "payload",
+        "x": 1000,
+        "y": 220,
+        "wires": []
+    },
+
+    {
+        "id": "catch_gateway_down",
+        "type": "catch",
+        "z": "tab_iot_bridge",
+        "name": "Catch Gateway Error",
+        "scope": [
+            "gps_http_request",
+            "pax_http_request"
+        ],
+        "uncaught": false,
+        "x": 220,
+        "y": 360,
+        "wires": [
+            [
+                "build_queue_line"
+            ]
+        ]
+    },
+    {
+        "id": "build_queue_line",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Build Queue Entry",
+        "func": "const entry = {\n    timestamp: new Date().toISOString(),\n    target:    msg.url || 'unknown',\n    error:     msg.error ? msg.error.message : 'unknown',\n    payload:   msg.payload\n};\nmsg.payload      = JSON.stringify(entry) + '\\n';\nmsg.filename     = msg.queueFile || '/data/queue/unknown-queue.jsonl';\nmsg.appendNewline = false;\nreturn msg;",
+        "outputs": 1,
+        "x": 470,
+        "y": 360,
+        "wires": [
+            [
+                "write_queue_file"
+            ]
+        ]
+    },
+    {
+        "id": "write_queue_file",
+        "type": "file",
+        "z": "tab_iot_bridge",
+        "name": "Write to Queue",
+        "filename": "",
+        "filenameType": "msg",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "false",
+        "x": 700,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    }
+]
