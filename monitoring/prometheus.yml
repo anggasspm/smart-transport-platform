@@ -40,5 +40,5 @@ scrape_configs:
   
   - job_name: 'mosquitto'
     static_configs:
-      - targets: ['mosquitto:9001']
+      - targets: ['mosquitto-exporter:9234']
     metrics_path: '/metrics'

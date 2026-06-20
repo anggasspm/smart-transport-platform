@@ -43,4 +43,23 @@ class PassengerController extends BaseController
         if (!$passenger) return $this->respond(404, null, 'Passenger not found');
         return $this->respond(200, $passenger, 'OK');
     }
+
+    // GET /api/passengers/by-card/{card_number}
+    // iot halte ngecek apakah kartu yang discan valid
+    public function byCard(string $cardNumber): ResponseInterface
+    {
+        $model = new PassengerModel();
+        $passenger = $model->where('card_number', $cardNumber)->first();
+
+        if (!$passenger) {
+            return $this->respond(404, null, 'Kartu tidak ada');
+        }
+
+        return $this->respond(200, [
+            'id' => $passenger['id'],
+            'name' => $passenger['name'],
+            'card_number' => $passenger['card_number'],
+            'balance' => $passenger['balance'],
+        ], 'OK');
+    }
 }

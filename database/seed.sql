@@ -1,15 +1,76 @@
 -- Seed: stop_stops 
 INSERT INTO stop_stops (name, route_id, lat, lng, zone_id, sequence_order) VALUES
-('Halte Bogor', 1, -6.1754, 106.8272, 1, 1),
-('Halte Cilebut', 1, -6.1682, 106.8155, 1, 2),
-('Halte Senen', 2, -6.1764, 106.8452, 2, 1),
-('Halte Cawang', 2, -6.2424, 106.8681, 2, 2),
-('Halte Blok M', 3, -6.2446, 106.7986, 3, 1),
-('Halte Sudirman', 3, -6.2088, 106.8230, 3, 2),
-('Halte Kuningan', 4, -6.2250, 106.8310, 2, 1),
-('Halte Dukuh Atas', 4, -6.2015, 106.8230, 1, 2),
-('Halte Tanah Abang', 5, -6.1861, 106.8118, 1, 1),
-('Halte Palmerah', 5, -6.2050, 106.7971, 3, 2);
+
+-- route 1
+('Terminal Lebak Bulus',1,-6.2897154,106.7748231,3,1),
+('Halte Fatmawati',1,-6.2920817,106.7926304,3,2),
+('Halte Cipete Raya',1,-6.2789535,106.7974812,3,3),
+('Halte Blok M',1,-6.2446481,106.7986129,3,4),
+('Bundaran HI',1,-6.1949978,106.8229143,1,5),
+
+-- route 2
+('Terminal Pulo Gadung',2,-6.1849376,106.8992147,2,1),
+('Halte Rawamangun',2,-6.1974165,106.8817158,2,2),
+('Halte Matraman',2,-6.2118263,106.8665941,2,3),
+('Halte Senen',2,-6.1765312,106.8419054,2,4),
+('Terminal Harmoni',2,-6.1664871,106.8171837,1,5),
+
+-- route 3
+('Terminal Kalideres',3,-6.1375589,106.7039712,3,1),
+('Halte Pesakih',3,-6.1479425,106.7203855,3,2),
+('Halte Jembatan Baru',3,-6.1583321,106.7516403,3,3),
+('Halte Grogol',3,-6.1615407,106.7904485,2,4),
+('Terminal Pasar Baru',3,-6.1627506,106.8342139,1,5),
+
+-- route 4
+('Terminal Pulogadung',4,-6.1845113,106.8994725,2,1),
+('Halte Pemuda',4,-6.1934867,106.8789301,2,2),
+('Halte Pramuka',4,-6.2023187,106.8604405,2,3),
+('Halte Kuningan',4,-6.2252641,106.8309488,2,4),
+('Terminal Dukuh Atas',4,-6.2008427,106.8228772,1,5),
+
+-- route 5
+('Terminal Ancol',5,-6.1239176,106.8423198,1,1),
+('Halte Gunung Sahari',5,-6.1496264,106.8429486,1,2),
+('Halte Mangga Dua',5,-6.1377845,106.8236074,1,3),
+('Halte Cempaka Putih',5,-6.1816282,106.8663321,2,4),
+('Terminal Kampung Melayu',5,-6.2147593,106.8664757,2,5),
+
+-- route 6
+('Terminal Ragunan',6,-6.3023171,106.8202469,3,1),
+('Halte Pasar Minggu',6,-6.2853877,106.8422104,3,2),
+('Halte Pancoran',6,-6.2436931,106.8427149,2,3),
+('Halte Setiabudi',6,-6.2216942,106.8248527,2,4),
+('Terminal Dukuh Atas',6,-6.2008427,106.8228772,1,5),
+
+-- route 7
+('Terminal Kampung Rambutan',7,-6.3090174,106.8842732,3,1),
+('Halte Ciracas',7,-6.2943115,106.8784338,3,2),
+('Halte Cawang UKI',7,-6.2421847,106.8738917,2,3),
+('Halte Bidara Cina',7,-6.2251786,106.8682375,2,4),
+('Terminal Kampung Melayu',7,-6.2147593,106.8664757,2,5),
+
+-- route 8
+('Terminal Lebak Bulus',8,-6.2897154,106.7748231,3,1),
+('Halte Pondok Indah',8,-6.2669803,106.7822158,3,2),
+('Halte Senayan',8,-6.2270624,106.7993127,2,3),
+('Halte Monas',8,-6.1753926,106.8271528,1,4),
+('Terminal Harmoni',8,-6.1664871,106.8171837,1,5),
+
+-- route 9
+('Terminal Pinang Ranti',9,-6.2901135,106.8819158,3,1),
+('Halte TMII',9,-6.2990725,106.8891244,3,2),
+('Halte Cawang',9,-6.2421274,106.8668816,2,3),
+('Halte Tomang',9,-6.1718619,106.7928488,2,4),
+('Terminal Pluit',9,-6.1178063,106.7906397,1,5),
+
+-- route 10
+('Terminal Blok M',10,-6.2446481,106.7986129,3,1),
+('Halte ASEAN',10,-6.2388634,106.7999816,3,2),
+('Halte Menteng',10,-6.1944815,106.8387476,1,3),
+('Halte Kemayoran',10,-6.1573727,106.8508913,1,4),
+('Terminal Tanjung Priok',10,-6.1048235,106.8805447,1,5);
+
 
 -- Seed: passenger_passengers
 INSERT INTO passenger_passengers (name, email, phone, card_number, balance, zone_id, role, password) VALUES
