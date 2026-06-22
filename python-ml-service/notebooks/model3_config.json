@@ -11,6 +11,11 @@
     "IF_output_-1": 1,
     "IF_output_1": 0
   },
+  "severity_thresholds": {
+    "High": 0.633819694163295,
+    "Medium": 0.6007893136710493,
+    "Low": 0.570353655280716
+  },
   "scaler": "scaler_model3.pkl",
-  "model": "isolation_forest_model3.pkl"
+  "model": "model3_anomaly_detector.pkl"
 }
