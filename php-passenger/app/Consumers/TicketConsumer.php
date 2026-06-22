@@ -1,12 +1,10 @@
 <?php
-
 define('FCPATH', __DIR__ . '/../../public/');
 chdir(__DIR__ . '/../..');
 require 'vendor/autoload.php';
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-// Load .env manual karena tidak lewat CI4 bootstrap
 $env = parse_ini_file(__DIR__ . '/../../.env');
 foreach ($env as $key => $val) {
     $_ENV[$key] = $val;
@@ -20,8 +18,8 @@ $conn    = new AMQPStreamConnection(
 );
 $channel = $conn->channel();
 $channel->exchange_declare('city.events', 'topic', false, true, false);
-$channel->queue_declare('anomaly.alert', false, true, false, false);
-$channel->queue_bind('anomaly.alert', 'city.events', 'anomaly.alert');
+$channel->queue_declare('ticket.purchased', false, true, false, false);
+$channel->queue_bind('ticket.purchased', 'city.events', 'ticket.purchased');
 
 $dbHost = $_ENV['database.default.hostname'] ?? 'mysql';
 $dbName = $_ENV['database.default.database'] ?? 'smarttransport';
@@ -34,37 +32,37 @@ $pdo = new PDO(
     $dbPass
 );
 
-echo "[AnomalyConsumer] Listening on anomaly.alert...\n";
+echo "[TicketConsumer] Listening on ticket.purchased...\n";
 
 $channel->basic_consume(
-    'anomaly.alert', '', false, false, false, false,
+    'ticket.purchased', '', false, false, false, false,
     function($msg) use ($pdo) {
         $event = json_decode($msg->body, true);
-        echo "[AnomalyConsumer] Event diterima: " . json_encode($event) . "\n";
+        echo "[TicketConsumer] Event diterima: " . json_encode($event) . "\n";
 
-        $stmt = $pdo->prepare("
-            SELECT DISTINCT passenger_id FROM passenger_tickets
-            WHERE route_id = :route_id AND status = 'active'
-        ");
-        $stmt->execute([':route_id' => $event['route_id'] ?? 0]);
-        $passengers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $passengerId = $event['passenger_id'] ?? null;
+        $routeId     = $event['route_id'] ?? null;
+        $ticketId    = $event['ticket_id'] ?? null;
+
+        if (!$passengerId) {
+            echo "[TicketConsumer] passenger_id tidak ada, skip.\n";
+            $msg->ack();
+            return;
+        }
 
         $insert = $pdo->prepare("
             INSERT INTO passenger_notifications
                 (passenger_id, title, body, type, is_read)
-            VALUES (:pid, :title, :body, 'anomaly', 0)
+            VALUES (:pid, :title, :body, 'ticket', 0)
         ");
 
-        foreach ($passengers as $p) {
-            $insert->execute([
-                ':pid'   => $p['passenger_id'],
-                ':title' => 'Gangguan Terdeteksi',
-                ':body'  => 'Anomali terdeteksi di rute ' . ($event['route_id'] ?? '-')
-                          . '. ' . ($event['message'] ?? '')
-            ]);
-        }
+        $insert->execute([
+            ':pid'   => $passengerId,
+            ':title' => 'Tiket Berhasil Dibeli',
+            ':body'  => 'Tiket #' . $ticketId . ' untuk rute ' . $routeId . ' berhasil dibeli. Selamat bepergian!'
+        ]);
 
-        echo "[AnomalyConsumer] Notif dikirim ke " . count($passengers) . " penumpang\n";
+        echo "[TicketConsumer] Notif tiket dikirim ke passenger_id: {$passengerId}\n";
         $msg->ack();
     }
 );

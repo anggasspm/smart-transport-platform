@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "author": "Fauzan Alfarisi",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "board-mfrc522", "id": "rfid1", "top": 122.15, "left": 157.04, "attrs": {} },
+    { "type": "board-mfrc522", "id": "rfid2", "top": -98.65, "left": 157.04, "attrs": {} },
+    { "type": "wokwi-ili9341", "id": "lcd1", "top": -248.8, "left": -221.1, "attrs": {} },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 117.6,
+      "left": -201.4,
+      "rotate": 180,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 179,
+      "left": -259.2,
+      "attrs": { "color": "green", "xray": "1" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 179,
+      "left": -144,
+      "attrs": { "color": "green", "xray": "1" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "rfid2:SDA", "esp:5", "green", [ "h-48", "v230.4" ] ],
+    [ "rfid2:SCK", "esp:18", "green", [ "h-38.4", "v153.6" ] ],
+    [ "rfid2:MOSI", "esp:23", "green", [ "h-57.6", "v76.8" ] ],
+    [ "rfid2:MISO", "esp:19", "green", [ "h-28.8", "v105.6", "h0", "v19.2" ] ],
+    [ "rfid2:RST", "esp:22", "green", [ "h-19.2", "v38.4" ] ],
+    [ "rfid2:3.3V", "esp:3V3", "green", [ "h-67.2", "v-19.2", "h-105.6", "v38.4", "h9.6" ] ],
+    [ "rfid2:GND", "esp:GND.1", "black", [ "h-67.2", "v-9.6", "h-115.2", "v144" ] ],
+    [ "rfid1:SDA", "esp:15", "green", [ "h-48", "v9.6" ] ],
+    [ "rfid1:SCK", "esp:18", "green", [ "h-38.4", "v-96" ] ],
+    [ "rfid1:MOSI", "esp:23", "green", [ "h-19.2", "v-124.8" ] ],
+    [ "rfid1:MISO", "esp:19", "green", [ "h-28.8", "v-115.2" ] ],
+    [ "rfid1:RST", "esp:4", "green", [ "h-48", "v-76.8" ] ],
+    [
+      "rfid1:GND",
+      "esp:GND.1",
+      "black",
+      [ "h-57.6", "v9.6", "h0", "v0", "h-115.2", "v-67.2", "h19.2" ]
+    ],
+    [ "rfid1:3.3V", "esp:3V3", "green", [ "h-163.2", "v-192" ] ],
+    [ "lcd1:CS", "esp:27", "green", [ "v48", "h144", "v38.4" ] ],
+    [ "lcd1:D/C", "esp:26", "green", [ "v9.6" ] ],
+    [ "lcd1:RST", "esp:25", "green", [ "v67.2", "h144" ] ],
+    [ "lcd1:SCK", "esp:18", "green", [ "v86.4", "h76.79", "v124.8", "h124.8", "v-144" ] ],
+    [ "lcd1:MISO", "esp:19", "green", [ "v0" ] ],
+    [ "lcd1:MOSI", "esp:23", "green", [ "v0", "h-0.01", "v28.8", "h192", "v-28.8" ] ],
+    [ "btn3:1.l", "esp:32", "green", [ "h-9.6", "v96", "h124.8", "v-211.2", "h33.41" ] ],
+    [ "btn3:1.r", "esp:GND.1", "green", [ "v-38.4", "h86.6" ] ],
+    [ "btn2:1.r", "esp:GND.1", "green", [ "v0", "h9.8", "v76.8", "h163.2", "v-105.6" ] ],
+    [ "btn2:1.l", "esp:33", "green", [ "h-9.6", "v105.6", "h220.8", "v-220.8" ] ],
+    [ "btn1:1.l", "esp:14", "green", [ "h38.4", "v-19.2" ] ],
+    [ "btn1:1.r", "esp:GND.1", "green", [ "v0", "h-9.8", "v19.2", "h124.8", "v-19.2", "h0" ] ],
+    [ "lcd1:GND", "esp:GND.1", "black", [ "v19.2", "h96", "v96", "h71.81" ] ],
+    [ "lcd1:VCC", "esp:3V3", "red", [ "v9.6", "h144", "v-19.2" ] ]
+  ],
+  "dependencies": {}
+}

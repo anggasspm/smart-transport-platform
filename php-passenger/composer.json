@@ -15,7 +15,8 @@
         "ext-mbstring": "*",
         "laminas/laminas-escaper": "^2.18",
         "psr/log": "^3.0",
-        "php-amqplib/php-amqplib": "^3.6"
+        "php-amqplib/php-amqplib": "^3.6",
+        "promphp/prometheus_client_php": "^2.10"
 
     },
     "require-dev": {

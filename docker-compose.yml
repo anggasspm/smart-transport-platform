@@ -40,9 +40,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-adminpass}
+      RABBITMQ_PLUGINS: "rabbitmq_prometheus"
     ports:
       - "5673:5672"
-      - "15673:15672"    
+      - "15673:15672"   
+      - "15692:15692" 
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -62,7 +64,23 @@ services:
       - "1883:1883"
     volumes:
       - ./iot/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./iot/passwd:/mosquitto/config/passwd
       - mosquitto-data:/mosquitto/data
+    networks:
+      - smarttransport-net
+  
+  mosquitto-exporter:
+    image: sapcc/mosquitto-exporter:latest
+    container_name: smarttransport-mosquitto-exporter
+    restart: unless-stopped
+    environment:
+      MQTT_URL: "tcp://mosquitto:1883"
+      MQTT_USER: ${MQTT_USER:-admin}
+      MQTT_PASS: ${MQTT_PASS:-adminpass}
+    ports:
+      - "9234:9234"
+    depends_on:
+      - mosquitto
     networks:
       - smarttransport-net
 
@@ -263,22 +281,11 @@ services:
     volumes:
       - ./iot/node-red-data:/data
     environment:
-      TZ: Asia/Jakarta
+      - IOT_TOKEN=dummytoken
+      - TZ=Asia/Jakarta
     depends_on:
       - mosquitto
       - api-gateway
-    networks:
-      - smarttransport-net
-    
-  # IOT SIMULATORS
-  iot-simulator:
-    build:
-      context: ./iot
-      dockerfile: Dockerfile.simulator
-    container_name: smarttransport-iot-simulator
-    restart: unless-stopped
-    depends_on:
-      - mosquitto
     networks:
       - smarttransport-net
 
@@ -328,6 +335,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
     depends_on:
       - prometheus
     networks:
