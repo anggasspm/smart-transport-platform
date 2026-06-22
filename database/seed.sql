@@ -78,7 +78,60 @@ INSERT INTO passenger_passengers (name, email, phone, card_number, balance, zone
 ('Siti Rahayu', 'siti@mail.com', '081234567891', 'CARD-002', 200000, 2, 'passenger', '$2y$10$dummyhash2'),
 ('Ahmad Fauzi', 'ahmad@mail.com', '081234567892', 'CARD-003', 75000, 1, 'passenger', '$2y$10$dummyhash3'),
 ('Dewi Lestari', 'dewi@mail.com', '081234567893', 'CARD-004', 300000, 3, 'passenger', '$2y$10$dummyhash4'),
-('Rizky Pratama', 'rizky@mail.com', '081234567894', 'CARD-005', 50000, 2, 'passenger', '$2y$10$dummyhash5');
+('Rizky Pratama', 'rizky@mail.com', '081234567894', 'CARD-005', 50000, 2, 'passenger', '$2y$10$dummyhash5'),
+
+('Andi Saputra', 'andi@mail.com', '081234567895', 'CARD-006', 125000, 1, 'passenger', '$2y$10$dummyhash6'),
+('Rina Marlina', 'rina@mail.com', '081234567896', 'CARD-007', 180000, 2, 'passenger', '$2y$10$dummyhash7'),
+('Fajar Nugroho', 'fajar@mail.com', '081234567897', 'CARD-008', 90000, 1, 'passenger', '$2y$10$dummyhash8'),
+('Nina Oktavia', 'nina@mail.com', '081234567898', 'CARD-009', 220000, 3, 'passenger', '$2y$10$dummyhash9'),
+('Dimas Wijaya', 'dimas@mail.com', '081234567899', 'CARD-010', 110000, 2, 'passenger', '$2y$10$dummyhash10'),
+('Putri Ayu', 'putri@mail.com', '081234567900', 'CARD-011', 275000, 1, 'passenger', '$2y$10$dummyhash11'),
+('Yusuf Maulana', 'yusuf@mail.com', '081234567901', 'CARD-012', 85000, 2, 'passenger', '$2y$10$dummyhash12'),
+('Intan Permata', 'intan@mail.com', '081234567902', 'CARD-013', 160000, 3, 'passenger', '$2y$10$dummyhash13'),
+('Bayu Ramadhan', 'bayu@mail.com', '081234567903', 'CARD-014', 95000, 1, 'passenger', '$2y$10$dummyhash14'),
+('Maya Sari', 'maya@mail.com', '081234567904', 'CARD-015', 240000, 2, 'passenger', '$2y$10$dummyhash15'),
+('Arif Hidayat', 'arif@mail.com', '081234567905', 'CARD-016', 130000, 1, 'passenger', '$2y$10$dummyhash16'),
+('Lina Kartika', 'lina@mail.com', '081234567906', 'CARD-017', 190000, 3, 'passenger', '$2y$10$dummyhash17'),
+('Reza Kurniawan', 'reza@mail.com', '081234567907', 'CARD-018', 70000, 2, 'passenger', '$2y$10$dummyhash18'),
+('Tika Puspita', 'tika@mail.com', '081234567908', 'CARD-019', 210000, 1, 'passenger', '$2y$10$dummyhash19'),
+('Hendra Gunawan', 'hendra@mail.com', '081234567909', 'CARD-020', 145000, 2, 'passenger', '$2y$10$dummyhash20'),
+('Wulan Safitri', 'wulan@mail.com', '081234567910', 'CARD-021', 260000, 3, 'passenger', '$2y$10$dummyhash21'),
+('Eko Prasetyo', 'eko@mail.com', '081234567911', 'CARD-022', 100000, 1, 'passenger', '$2y$10$dummyhash22'),
+('Fitri Handayani', 'fitri@mail.com', '081234567912', 'CARD-023', 175000, 2, 'passenger', '$2y$10$dummyhash23'),
+('Galih Putra', 'galih@mail.com', '081234567913', 'CARD-024', 80000, 1, 'passenger', '$2y$10$dummyhash24'),
+('Ayu Maharani', 'ayum@mail.com', '081234567914', 'CARD-025', 235000, 3, 'passenger', '$2y$10$dummyhash25'),
+('Rendy Firmansyah', 'rendy@mail.com', '081234567915', 'CARD-026', 120000, 2, 'passenger', '$2y$10$dummyhash26'),
+('Citra Dewanti', 'citra@mail.com', '081234567916', 'CARD-027', 195000, 1, 'passenger', '$2y$10$dummyhash27'),
+('Agus Salim', 'agus@mail.com', '081234567917', 'CARD-028', 65000, 2, 'passenger', '$2y$10$dummyhash28'),
+('Nabila Zahra', 'nabila@mail.com', '081234567918', 'CARD-029', 285000, 3, 'passenger', '$2y$10$dummyhash29'),
+('Joko Susilo', 'joko@mail.com', '081234567919', 'CARD-030', 140000, 1, 'passenger', '$2y$10$dummyhash30'),
+('Selvi Ananda', 'selvi@mail.com', '081234567920', 'CARD-031', 225000, 2, 'passenger', '$2y$10$dummyhash31'),
+('Ilham Akbar', 'ilham@mail.com', '081234567921', 'CARD-032', 105000, 1, 'passenger', '$2y$10$dummyhash32'),
+('Novi Yuliana', 'novi@mail.com', '081234567922', 'CARD-033', 170000, 3, 'passenger', '$2y$10$dummyhash33'),
+('Farhan Hakim', 'farhan@mail.com', '081234567923', 'CARD-034', 92000, 2, 'passenger', '$2y$10$dummyhash34'),
+('Desy Amelia', 'desy@mail.com', '081234567924', 'CARD-035', 250000, 1, 'passenger', '$2y$10$dummyhash35'),
+('Rafi Aditya', 'rafi@mail.com', '081234567925', 'CARD-036', 135000, 2, 'passenger', '$2y$10$dummyhash36'),
+('Shinta Larasati', 'shinta@mail.com', '081234567926', 'CARD-037', 205000, 3, 'passenger', '$2y$10$dummyhash37'),
+('Bagas Mahendra', 'bagas@mail.com', '081234567927', 'CARD-038', 78000, 1, 'passenger', '$2y$10$dummyhash38'),
+('Vina Melati', 'vina@mail.com', '081234567928', 'CARD-039', 230000, 2, 'passenger', '$2y$10$dummyhash39'),
+('Aldo Sapri', 'aldo@mail.com', '081234567929', 'CARD-040', 118000, 1, 'passenger', '$2y$10$dummyhash40'),
+('Mega Kusuma', 'mega@mail.com', '081234567930', 'CARD-041', 265000, 3, 'passenger', '$2y$10$dummyhash41'),
+('Doni Setiawan', 'doni@mail.com', '081234567931', 'CARD-042', 99000, 2, 'passenger', '$2y$10$dummyhash42'),
+('Yuni Astuti', 'yuni@mail.com', '081234567932', 'CARD-043', 185000, 1, 'passenger', '$2y$10$dummyhash43'),
+('Iqbal Ramadhan', 'iqbal@mail.com', '081234567933', 'CARD-044', 88000, 2, 'passenger', '$2y$10$dummyhash44'),
+('Puspita Sari', 'puspita@mail.com', '081234567934', 'CARD-045', 245000, 3, 'passenger', '$2y$10$dummyhash45'),
+('Rama Prakoso', 'rama@mail.com', '081234567935', 'CARD-046', 150000, 1, 'passenger', '$2y$10$dummyhash46'),
+('Tiara Anjani', 'tiara@mail.com', '081234567936', 'CARD-047', 215000, 2, 'passenger', '$2y$10$dummyhash47'),
+('Wahyu Firmanto', 'wahyu@mail.com', '081234567937', 'CARD-048', 97000, 1, 'passenger', '$2y$10$dummyhash48'),
+('Nanda Pratiwi', 'nanda@mail.com', '081234567938', 'CARD-049', 280000, 3, 'passenger', '$2y$10$dummyhash49'),
+('Kevin Christian', 'kevin@mail.com', '081234567939', 'CARD-050', 155000, 2, 'passenger', '$2y$10$dummyhash50'),
+
+('Jack', 'jack@mail.com', '085234517895', '01020304', 125000, 1, 'passenger', '$2y$10$dummyhash51'),
+('Johannes', 'johan@mail.com', '08233567896', '11223344', 180000, 2, 'passenger', '$2y$10$dummyhash52'),
+('Napoleon', 'napoleon@mail.com', '081234567897', '55667788', 90000, 1, 'passenger', '$2y$10$dummyhash53'),
+('Copernicus', 'caper@mail.com', '085234567898', 'AABBCCDD', 275000, 3, 'passenger', '$2y$10$dummyhash54'),
+('Daniel', 'daniel@mail.com', '085534567899', 'C0FFEE99', 60000, 2, 'passenger', '$2y$10$dummyhash55'),
+('Lucas', 'lucas@mail.com', '083234567900', '04112233', 220000, 1, 'passenger', '$2y$10$dummyhash56');
 
 -- Seed: passenger_tickets
 INSERT INTO passenger_tickets (passenger_id, route_id, origin_stop_id, dest_stop_id, status, price) VALUES
@@ -94,13 +147,13 @@ INSERT INTO passenger_notifications (passenger_id, title, body, type, is_read) V
 (2, 'Tiket Berhasil', 'Tiket perjalanan kamu berhasil dibeli', 'ticket', 1),
 (3, 'Halte Padat', 'Halte Monas sedang sangat padat, pertimbangkan halte alternatif', 'anomaly', 0);
 
--- Seed: stop_passenger_counts
+/* Seed: stop_passenger_counts
 INSERT INTO stop_passenger_counts (stop_id, bus_id, boarded, alighted, current_load) VALUES
 (1, 1, 15, 5, 30),
 (2, 1, 10, 12, 28),
 (3, 2, 20, 3, 45),
 (4, 2, 8, 15, 38),
-(5, 3, 25, 10, 50);
+(5, 3, 25, 10, 50); */
 
 -- Seed: stop_alerts
 INSERT INTO stop_alerts (stop_id, alert_type, severity, message, threshold) VALUES
