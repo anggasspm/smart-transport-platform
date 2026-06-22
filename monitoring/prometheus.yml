@@ -42,3 +42,13 @@ scrape_configs:
     static_configs:
       - targets: ['mosquitto-exporter:9234']
     metrics_path: '/metrics'
+
+  - job_name: 'oauth-server'
+    static_configs:
+      - targets: ['oauth-server:3002']
+    metrics_path: '/metrics'
+
+  - job_name: 'node-red'
+    static_configs:
+      - targets: ['node-red:1880']
+    metrics_path: '/metrics'

@@ -34,6 +34,7 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
+        'metrics' => \App\Filters\MetricsFilter::class,
     ];
 
     /**
@@ -77,8 +78,7 @@ class Filters extends BaseFilters
             // 'invalidchars',
         ],
         'after' => [
-            // 'honeypot',
-            // 'secureheaders',
+            'metrics' => ['except' => ['metrics', 'health']],
         ],
     ];
 

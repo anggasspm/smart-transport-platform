@@ -1,25 +1,35 @@
 <?php
-
 namespace App\Controllers\Api;
 
 use CodeIgniter\Controller;
 use Prometheus\CollectorRegistry;
-use Prometheus\Storage\InMemory;
+use Prometheus\Storage\APC;
 use Prometheus\RenderTextFormat;
 
 class MetricsController extends Controller
 {
     public function index()
     {
-        $registry = new CollectorRegistry(new InMemory());
+        $registry = new CollectorRegistry(new APC());
+        $db = \Config\Database::connect();
 
-        $requestCounter = $registry->getOrRegisterCounter(
-            'php_fleet',
-            'http_requests_total',
-            'Total HTTP requests',
-            ['method', 'path', 'status', 'job']
-        );
-        $requestCounter->inc(['GET', '/api/buses', '200', 'php-fleet']);
+        $totalPassengers = $db->table('passenger_passengers')->countAll();
+        $totalTickets = $db->table('passenger_tickets')->countAll();
+        $activeTickets = $db->table('passenger_tickets')->where('status', 'active')->countAll();
+        $usedTickets = $db->table('passenger_tickets')->where('status', 'used')->countAll();
+
+        // menggunakan gauge karena data bisa naik turun
+        $g1 = $registry->getOrRegisterGauge('php_passenger', 'total_passengers', 'Total Penumpang Terdaftar');
+        $g1->set($totalPassengers);
+
+        $g2 = $registry->getOrRegisterGauge('php_passenger', 'total_tickets', 'Total tickets');
+        $g2->set($totalTickets);
+
+        $g3 = $registry->getOrRegisterGauge('php_passenger', 'active_tickets', 'Active tickets');
+        $g3->set($activeTickets);
+
+        $g4 = $registry->getOrRegisterGauge('php_passenger', 'used_tickets', 'Used tickets');
+        $g4->set($usedTickets);
 
         $renderer = new RenderTextFormat();
         $result = $renderer->render($registry->getMetricFamilySamples());
