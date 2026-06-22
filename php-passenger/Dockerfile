@@ -17,12 +17,15 @@ RUN docker-php-ext-configure intl \
         mysqli \
         sockets
 
+RUN pecl install apcu && docker-php-ext-enable apcu
+RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock* ./
-RUN composer install --optimize-autoloader --no-interaction --no-progress
+RUN composer install --optimize-autoloader --no-interaction --no-progress --ignore-platform-reqs
 
 COPY . .
 

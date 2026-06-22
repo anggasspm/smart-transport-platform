@@ -23,6 +23,34 @@
           "expr": "sum(rate(http_requests_total[1m])) by (job)",
           "legendFormat": "{{job}}",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_fleet_http_requests_total[1m]))",
+          "legendFormat": "php-fleet",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_passenger_http_requests_total[1m]))",
+          "legendFormat": "php-passenger",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_stop_http_requests_total[1m]))",
+          "legendFormat": "php-stop",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(rate(oauth_http_requests_total[1m]))",
+          "legendFormat": "oauth-server",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(rate(python_ml_http_requests_total[1m]))",
+          "legendFormat": "python-ml",
+          "refId": "F"
         }
       ],
       "title": "Request Rate (per service)",
@@ -43,9 +71,37 @@
           "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) by (job)",
           "legendFormat": "{{job}}",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_fleet_http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "php-fleet errors",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_passenger_http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "php-passenger errors",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(php_stop_http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "php-stop errors",
+          "refId": "D"
+        },
+        {
+          "expr": "sum(rate(oauth_http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "oauth-server errors",
+          "refId": "E"
+        },
+        {
+          "expr": "sum(rate(python_ml_http_requests_total{status=~\"5..\"}[1m]))",
+          "legendFormat": "python-ml errors",
+          "refId": "F"
         }
       ],
-      "title": "Error Rate (5xx, per service)",
+      "title": "Error Rate (per service)",
       "type": "timeseries"
     },
     {
@@ -63,20 +119,42 @@
           "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, job))",
           "legendFormat": "{{job}} p95",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(php_fleet_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "php-fleet p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(php_passenger_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "php-passenger p95",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(php_stop_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "php-stop p95",
+          "refId": "D"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(oauth_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "oauth-server p95",
+          "refId": "E"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(python_ml_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "python-ml p95",
+          "refId": "F"
         }
       ],
       "title": "Latency p95 (per service)",
       "type": "timeseries"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "palette-classic" }, "unit": "percent" },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "id": 4,
-      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "title": "Penggunaan CPU (per kontainer)",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -84,8 +162,210 @@
           "legendFormat": "{{name}}",
           "refId": "A"
         }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Memory Usage (per container)",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "container_memory_usage_bytes{image!=\"\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+      "id": 6,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_fleet_total_buses",
+          "legendFormat": "Total Buses",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_fleet_active_buses",
+          "legendFormat": "Active Buses",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_fleet_total_routes",
+          "legendFormat": "Total Routes",
+          "refId": "C"
+        }
       ],
-      "title": "Penggunaan CPU (per kontainer)",
+      "title": "Fleet: Buses & Routes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
+      "id": 7,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_fleet_total_gps_logs",
+          "legendFormat": "Total GPS Logs",
+          "refId": "A"
+        }
+      ],
+      "title": "Fleet: GPS Logs dari IoT",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
+      "id": 8,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_passenger_total_passengers",
+          "legendFormat": "Total Passengers",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_passenger_total_tickets",
+          "legendFormat": "Total Tickets",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_passenger_active_tickets",
+          "legendFormat": "Active Tickets",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_passenger_used_tickets",
+          "legendFormat": "Used Tickets",
+          "refId": "D"
+        }
+      ],
+      "title": "Passenger: Tickets & Passengers",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 9,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_stop_total_stops",
+          "legendFormat": "Total Halte",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "php_stop_total_current_load",
+          "legendFormat": "Total Penumpang di Semua Halte",
+          "refId": "B"
+        }
+      ],
+      "title": "Stop: Halte & Penumpang",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 10,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_connections",
+          "legendFormat": "Connections",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_channels",
+          "legendFormat": "Channels",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_consumers",
+          "legendFormat": "Consumers",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_queues",
+          "legendFormat": "Queues",
+          "refId": "D"
+        }
+      ],
+      "title": "RabbitMQ: Connections & Queues",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "id": 11,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(rabbitmq_global_messages_received_total[1m])",
+          "legendFormat": "Messages Received/s",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(rabbitmq_global_messages_delivered_total[1m])",
+          "legendFormat": "Messages Delivered/s",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_queue_messages_ready",
+          "legendFormat": "Messages Ready in Queue",
+          "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_queue_messages_unacked",
+          "legendFormat": "Messages Unacked",
+          "refId": "D"
+        }
+      ],
+      "title": "RabbitMQ: Message Throughput",
       "type": "timeseries"
     },
     {
@@ -94,18 +374,50 @@
         "defaults": { "color": { "mode": "palette-classic" }, "unit": "bytes" },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "id": 5,
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "id": 12,
       "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "container_memory_usage_bytes{image!=\"\"}",
-          "legendFormat": "{{name}}",
+          "expr": "rabbitmq_process_resident_memory_bytes",
+          "legendFormat": "RabbitMQ Memory Usage",
           "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rabbitmq_disk_space_available_bytes",
+          "legendFormat": "Disk Space Available",
+          "refId": "B"
         }
       ],
-      "title": "Memory Usage (per container)",
+      "title": "RabbitMQ: Memory & Disk",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+      "id": 13,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "nodered_flows_total",
+          "legendFormat": "Total Flows",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "nodered_messages_total",
+          "legendFormat": "Total Messages Diproses",
+          "refId": "B"
+        }
+      ],
+      "title": "Node-RED Flows & Messages",
       "type": "timeseries"
     }
   ],

@@ -85,39 +85,23 @@ class StopController extends BaseController
         $db = \Config\Database::connect();
         $body = $this->request->getJSON(true);
 
-        $busId    = $body['bus_id']   ?? null;
-        $boarded  = $body['boarded']  ?? 0;
+        $busId = $body['bus_id'] ?? null;
+        $boarded = $body['boarded'] ?? 0;
         $alighted = $body['alighted'] ?? 0;
 
-        $existing = $db->table('stop_passenger_counts')
-                       ->where('stop_id', $stopId)
-                       ->where('bus_id', $busId)
-                       ->get()->getRowArray();
+        $last = $db->table('stop_passenger_counts')
+                ->where('stop_id', $stopId)
+                ->orderBy('recorded_at', 'DESC')
+                ->limit(1)->get()->getRowArray();
 
-        if ($existing) {
-            $db->table('stop_passenger_counts')
-               ->where('stop_id', $stopId)
-               ->where('bus_id', $busId)
-               ->update([
-                   'boarded'     => $boarded,
-                   'alighted'    => $alighted,
-                   'recorded_at' => date('Y-m-d H:i:s'),
-               ]);
-        } else {
-            $last = $db->table('stop_passenger_counts')
-                       ->where('stop_id', $stopId)
-                       ->orderBy('recorded_at', 'DESC')
-                       ->limit(1)->get()->getRowArray();
-
-            $db->table('stop_passenger_counts')->insert([
-                'stop_id'      => $stopId,
-                'bus_id'       => $busId,
-                'boarded'      => $boarded,
-                'alighted'     => $alighted,
-                'current_load' => $last['current_load'] ?? 0,
-                'recorded_at'  => date('Y-m-d H:i:s'),
-            ]);
-        }
+        $db->table('stop_passenger_counts')->insert([
+            'stop_id' => $stopId,
+            'bus_id' => $busId,
+            'boarded' => $boarded,
+            'alighted' => $alighted,
+            'current_load' => $last['current_load'] ?? 0,
+            'recorded_at' => date('Y-m-d H:i:s'),
+        ]);
 
         return $this->respond(200, null, 'Jumlah yang naik dan turun bus di halte terperbarui');
     }
@@ -126,13 +110,20 @@ class StopController extends BaseController
     public function busDeparture(int $stopId): ResponseInterface
     {
         $db = \Config\Database::connect();
-        $db->table('stop_passenger_counts')
-           ->where('stop_id', $stopId)
-           ->whereNotNull('bus_id')
-           ->update([
-               'bus_id'      => null,
-               'recorded_at' => date('Y-m-d H:i:s'),
-           ]);
+
+        $last = $db->table('stop_passenger_counts')
+                ->where('stop_id', $stopId)
+                ->orderBy('recorded_at', 'DESC')
+                ->limit(1)->get()->getRowArray();
+
+        if ($last && $last['bus_id'] !== null) {
+            $db->table('stop_passenger_counts')
+            ->where('id', $last['id'])
+            ->update([
+                'bus_id' => null,
+                'recorded_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
 
         return $this->respond(200, null, 'Bus berangkat updated');
     }
@@ -143,7 +134,7 @@ class StopController extends BaseController
         $db = \Config\Database::connect();
         $body = $this->request->getJSON(true);
 
-        $stopId      = $body['stop_id']      ?? 0;
+        $stopId = $body['stop_id'] ?? 0;
         $currentLoad = $body['current_load'] ?? 0;
 
         $last = $db->table('stop_passenger_counts')
@@ -157,9 +148,9 @@ class StopController extends BaseController
                ->update(['current_load' => $currentLoad, 'recorded_at' => date('Y-m-d H:i:s')]);
         } else {
             $db->table('stop_passenger_counts')->insert([
-                'stop_id'      => $stopId,
+                'stop_id' => $stopId,
                 'current_load' => $currentLoad,
-                'recorded_at'  => date('Y-m-d H:i:s'),
+                'recorded_at' => date('Y-m-d H:i:s'),
             ]);
         }
 

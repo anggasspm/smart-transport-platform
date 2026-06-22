@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS stop_stops (
 CREATE TABLE IF NOT EXISTS stop_passenger_counts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     stop_id INT NOT NULL,
-    bus_id INT NOT NULL,
+    bus_id INT NULL,
     boarded INT DEFAULT 0,
     alighted INT DEFAULT 0,
     current_load INT DEFAULT 0,
@@ -164,4 +164,4 @@ CREATE TABLE IF NOT EXISTS fleet_incidents (
     INDEX idx_fleet_incidents_severity    (severity),
     INDEX idx_fleet_incidents_reported_at (reported_at),
     CONSTRAINT fk_fleet_incidents_bus FOREIGN KEY (bus_id) REFERENCES fleet_buses(id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

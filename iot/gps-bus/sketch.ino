@@ -1,26 +1,36 @@
+// bus-gps
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <math.h>
+#include "config.h"
 
-#define BUS_ID 1
+#define BUS_ID 2
 #define RFID_SS_PIN 5
 #define RFID_RST_PIN 4
-#define SCAN_WINDOW_MS 60000
+#define SCAN_WINDOW_MS 90000
+
+#define ONE_WIRE_BUS 13
+#define OVERHEAT_THRESHOLD 80.0
+#define COOLDOWN_THRESHOLD 40.0
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature engineTempSensor(&oneWire);
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
-const char* MQTT_SERVER = "192.168.1.100";
-const int MQTT_PORT = 1883;
-const char* MQTT_USER = "iot";
-const char* MQTT_PASS = "iotpassword";
-const char* API_BASE = "http://192.168.1.100:3000";
+const char* MQTT_SERVER = MQTT_SERVER_HOST;
+const int MQTT_PORT = MQTT_SERVER_PORT;
+const char* MQTT_USER = MQTT_USER_STR;
+const char* MQTT_PASS = MQTT_PASS_STR;
+const char* API_BASE = API_BASE_URL;
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -110,6 +120,9 @@ unsigned long oledMessageUntil = 0;
 
 #define MAX_PASSENGERS 40
 
+unsigned long lastOccupiedCheck = 0;
+#define OCCUPIED_CHECK_INTERVAL 3000
+
 String passengersInBus[MAX_PASSENGERS];
 int passengerCardCount = 0;
 String lastCardUID = "";
@@ -135,11 +148,18 @@ unsigned long lastGpsPublish = 0;
 int routeId = 1;
 int routeIdx = 0;
 
+char replyTopic[40];
+
+volatile bool mqttResponseReceived = false;
+String mqttResponsePayload = "";
+
 // setup komponen
 void setup() {
   Serial.begin(115200);
   SPI.begin();
   rfid.PCD_Init();
+
+  engineTempSensor.begin();
 
   // inisialisasi oled
   Wire.begin();
@@ -171,7 +191,12 @@ void setup() {
     delay(1000);
   }
 
+  mqttClient.setBufferSize(512);
+
+  snprintf(replyTopic, sizeof(replyTopic), "city/bus/%d/reply", BUS_ID);
+
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setCallback(mqttCallback);
   connectMqtt();
 
   Serial.printf("BUS %d pada rute %d, mulai berjalan dari stop_id=%d\n", BUS_ID, routeId, currentStopId);
@@ -277,6 +302,11 @@ void updateOLED() {
   display.print(speed_kmh);
   display.println(" kmh");
 
+  display.print("Posisi: ");
+  display.print(currentLat, 6);
+  display.print(",");
+  display.println(currentLng, 6);
+
   display.print("Suhu: ");
   display.print(engineTemp);
   display.println(" C");
@@ -353,10 +383,26 @@ void updateMoving() {
   double targetLat = ROUTES[routeIdx][targetIdx].lat;
   double targetLng = ROUTES[routeIdx][targetIdx].lng;
 
-  speed_kmh = getSpeedByHour();
+  static unsigned long lastSpeedUpdate = 0;
 
-  // jarak gerak bus per 30 detik
-  double stepDeg = (speed_kmh / 3600.0) * 30 * (1.0 / 111.0); // 1 derajat ≈ 111 km
+  if (millis() - lastSpeedUpdate > 5000) {
+      speed_kmh = getSpeedByHour();
+      lastSpeedUpdate = millis();
+  }
+
+  static unsigned long lastMove = millis();
+
+  unsigned long now = millis();
+  double dt = (now - lastMove) / 1000.0;
+  lastMove = now;
+
+  double SIMULATION_FACTOR = 0.5;
+
+  double stepDeg =
+      (speed_kmh / 3600.0)
+      * dt
+      * (1.0 / 111.0)
+      * SIMULATION_FACTOR;
 
   double dLat = targetLat - currentLat;
   double dLng = targetLng - currentLng;
@@ -371,17 +417,20 @@ void updateMoving() {
     currentLat = targetLat;
     currentLng = targetLng;
     currentStopIdx = targetIdx;
-    currentStopId = ROUTES[routeIdx][targetIdx].stop_id;
-    arriveAtStop();
+    currentStopId = ROUTES[routeIdx][currentStopIdx].stop_id;
+    if (millis() - lastOccupiedCheck >= OCCUPIED_CHECK_INTERVAL) {
+      lastOccupiedCheck = millis();
+      arriveAtStop();
+    }
   } else {
     // gerak menuju halte
     currentLat += (dLat / dist) * stepDeg;
     currentLng += (dLng / dist) * stepDeg;
 
-    // 5% peluang macet (TRAFFIC) di daerah sekitar halte
-    if (random(100) < 5) {
+    // 0.05% peluang macet (TRAFFIC) di daerah sekitar
+    if (random(10000) < 5) {
       busState = TRAFFIC;
-      Serial.println("[BUS] ada kemacetan di daerah halte [TRAFFIC]");
+      Serial.println("[BUS] ada kemacetan di sekitar [TRAFFIC]");
     }
   }
 }
@@ -420,7 +469,6 @@ void updateAtStop() {
     clearStopBusId(currentStopId);
 
     // set halte berikutnya
-    advanceToNextStop();
     busState = MOVING;
     scanActive = false;
   }
@@ -460,8 +508,8 @@ void updateTraffic() {
     targetIdx = max(currentStopIdx - 1, 0);
 
   // bus melambat tapi tetap ke halte tujuan
-  double targetLat = ROUTES[routeIdx][currentStopIdx].lat;
-  double targetLng = ROUTES[routeIdx][currentStopIdx].lng;
+  double targetLat = ROUTES[routeIdx][targetIdx].lat;
+  double targetLng = ROUTES[routeIdx][targetIdx].lng;
   double stepDeg = (speed_kmh / 3600.0) * 30 * (1.0 / 111.0);
   double dLat = targetLat - currentLat;
   double dLng = targetLng - currentLng;
@@ -470,8 +518,8 @@ void updateTraffic() {
     currentLat += (dLat / dist) * stepDeg;
     currentLng += (dLng / dist) * stepDeg;
   }
-  // 20% peluang keluar dari macet
-  if (random(100) < 20) {
+  // 0.2% peluang keluar dari macet
+  if (random(10000) < 20) {
     busState = MOVING;
     Serial.println("[BUS] keluar dari macet (traffic out)");
   }
@@ -479,62 +527,64 @@ void updateTraffic() {
 
 void updateBreakdown() {
   speed_kmh = 0;
-  // minimal bus mogok itu 10 menit buat dinginin mesin
-  if (millis() - breakdownStart > 600000UL) {
+  // minimal bus mogok itu 60 detik buat dinginin mesin
+  if (millis() - breakdownStart > 60 * 1000UL) {
     busState = COOLING;
     Serial.println("[BUS] mulai mendinginkan mesin setelah mogok");
   }
 }
 
 void updateCooling() {
-  // suhu turun perlahan-perlahan
-  engineTemp -= 0.5;
-  if (engineTemp < 110) {
+  engineTemp = readEngineTemp();
+  if (engineTemp < COOLDOWN_THRESHOLD) {
     busState = MOVING;
     Serial.println("[BUS] reparasi mesin selesai, bus kembali jalan setelah sebelumnya mogok");
   }
 }
 
-void updateEngineTemp() {
-  float target;
-  switch (busState) {
-    case TRAFFIC: target = 100 + random(20); break;
-    case BREAKDOWN: target = 155 + random(5); break;
-    case COOLING: /* udah di updateCooling */ return;
-    default: target = 82 + random(10); break;
+float readEngineTemp() {
+  engineTempSensor.requestTemperatures();
+  float t = engineTempSensor.getTempCByIndex(0);
+  if (t == DEVICE_DISCONNECTED_C) {
+    return engineTemp;
   }
-  // suhu berubah pelan sesuai keadaan bus
-  if (engineTemp < target) engineTemp += 0.3;
-  else if (engineTemp > target) engineTemp -= 0.2;
+  return t;
+}
+
+void updateEngineTemp() {
+  if (busState == COOLING) return;
+  engineTemp = readEngineTemp();
 }
 
 void checkOverheat() {
   if (busState == BREAKDOWN || busState == COOLING) return;
-  if (random(1000) < 5) { // kemungkinan overheat 0.5%
-    engineTemp = 155 + random(10);
+  if (engineTemp >= OVERHEAT_THRESHOLD) {
     busState = BREAKDOWN;
     breakdownStart = millis();
     speed_kmh = 0;
-    Serial.println("[BUS] mogok karena overheat");
+    Serial.println("[BUS] mogok karena overheat (sensor)");
   }
 }
 
 bool isStopOccupied(int stop_id) {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/stops/" + stop_id + "/bus-status";
-  http.begin(url);
-  addAuthHeader(http);
-  int code = http.GET();
-  if (code == 200) {
-    String resp = http.getString();
-    StaticJsonDocument<256> doc;
-    deserializeJson(doc, resp);
-    bool occupied = !doc["data"]["bus_id"].isNull();
-    http.end();
-    return occupied;
+  char topic[40];
+  snprintf(topic, sizeof(topic), "city/stop/%d/bus-status/get", stop_id);
+
+  StaticJsonDocument<128> reqDoc;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
+  String body;
+  serializeJson(reqDoc, body);
+
+  String resp;
+  if (!mqttRequestResponse(topic, body, resp)) {
+    return false;
   }
-  http.end();
-  return false;
+
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, resp);
+  bool occupied = !doc["data"]["bus_id"].isNull();
+  return occupied;
 }
 
 // RFID scanner kartu di bus
@@ -622,17 +672,9 @@ void checkRFID() {
   rfid.PICC_HaltA();
 }
 
-// HTTP calls
-void addAuthHeader(HTTPClient& http) {
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("X-IoT-Key", "iot-secret-key"); // Gateway verify header ini
-}
-
 void updateStopPassengerCount(int stop_id, int bus_id, int boarded, int alighted) {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/stops/" + stop_id + "/bus-arrival";
-  http.begin(url);
-  addAuthHeader(http);
+  char topic[40];
+  snprintf(topic, sizeof(topic), "city/stop/%d/bus-arrival", stop_id);
 
   StaticJsonDocument<128> doc;
   doc["bus_id"] = bus_id;
@@ -641,20 +683,44 @@ void updateStopPassengerCount(int stop_id, int bus_id, int boarded, int alighted
   String body;
   serializeJson(doc, body);
 
-  int code = http.PUT(body);
-  Serial.printf("[HTTP] PUT bus stop=%d jadi %d\n", stop_id, code);
-  http.end();
+  bool success = mqttClient.publish(topic, body.c_str());
+  Serial.printf("[MQTT] PUT bus stop=%d  success=%d\n", stop_id, success);
 }
 
 void clearStopBusId(int stop_id) {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/stops/" + stop_id + "/bus-departure";
-  http.begin(url);
-  addAuthHeader(http);
-  http.addHeader("Content-Type", "application/json");
-  int code = http.PUT("{}");
-  Serial.printf("[HTTP] PUT bus stop=%d jadi %d\n", stop_id, code);
-  http.end();
+  char topic[40];
+  snprintf(topic, sizeof(topic), "city/stop/%d/bus-departure", stop_id);
+
+  bool success = mqttClient.publish(topic, "{}");
+  Serial.printf("[MQTT] PUT bus stop=%d jadi %d\n", stop_id, success);
+}
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (unsigned int i = 0; i < length; i++) {
+    msg += (char)payload[i];
+  }
+  mqttResponsePayload = msg;
+  mqttResponseReceived = true;
+}
+
+bool mqttRequestResponse(String topic, String payload, String &response) {
+  mqttResponseReceived = false;
+  mqttResponsePayload = "";
+  mqttClient.publish(topic.c_str(), payload.c_str());
+
+  unsigned long start = millis();
+  while (!mqttResponseReceived && millis() - start < 5000) {
+    mqttClient.loop();
+    delay(10);
+  }
+
+  if (mqttResponseReceived) {
+    response = mqttResponsePayload;
+    return true;
+  }
+
+  return false;
 }
 
 // MQTT publish gps
@@ -674,8 +740,11 @@ void publishGps() {
 
   char buf[256];
   serializeJson(doc, buf);
-  mqttClient.publish(topic, buf);
-  Serial.printf("[MQTT] publish: %s\n", buf);
+
+  bool success = mqttClient.publish(topic, buf);
+  Serial.printf("[MQTT-DEBUG] topic=%s len=%d success=%d state=%d connected=%d\n",
+                topic, strlen(buf), success, mqttClient.state(), mqttClient.connected());
+  Serial.printf("[MQTT-PAYLOAD] %s\n", buf);
 }
 
 // kecepatan berdasarkan jam
@@ -709,10 +778,13 @@ void connectWifi() {
 void connectMqtt() {
   char clientId[32];
   snprintf(clientId, sizeof(clientId), "bus-%d", BUS_ID);
+  mqttClient.setKeepAlive(60);
   while (!mqttClient.connected()) {
     if (mqttClient.connect(clientId, MQTT_USER, MQTT_PASS)) {
       Serial.printf("[MQTT] konek sebagai %s\n", clientId);
+      mqttClient.subscribe(replyTopic);
     } else {
+      Serial.printf("[MQTT] gagal konek, state: %d\n", mqttClient.state());
       delay(2000);
     }
   }

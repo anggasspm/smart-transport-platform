@@ -6,12 +6,20 @@
         "disabled": false
     },
     {
+        "id": "addc359b5a209750",
+        "type": "tab",
+        "label": "Metrics",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
         "id": "broker_mosquitto",
         "type": "mqtt-broker",
-        "name": "EMQX Public",
-        "broker": "broker.emqx.io",
+        "name": "Mosquitto Local",
+        "broker": "mosquitto",
         "port": "1883",
-        "clientid": "nodered_bridge_fauzan",
+        "clientid": "nodered_bridge",
         "autoConnect": true,
         "usetls": false,
         "protocolVersion": "4",
@@ -19,8 +27,8 @@
         "cleansession": true,
         "autoUnsubscribe": true,
         "credentials": {
-            "user": "",
-            "password": ""
+            "user": "iot_user",
+            "password": "iotpassword"
         },
         "birthTopic": "",
         "birthQos": "0",
@@ -36,7 +44,6 @@
         "userProps": "",
         "sessionExpiry": ""
     },
-
     {
         "id": "gps_mqtt_in",
         "type": "mqtt in",
@@ -123,7 +130,6 @@
         "y": 100,
         "wires": []
     },
-
     {
         "id": "pax_mqtt_in",
         "type": "mqtt in",
@@ -208,7 +214,6 @@
         "y": 220,
         "wires": []
     },
-
     {
         "id": "catch_gateway_down",
         "type": "catch",
@@ -258,7 +263,6 @@
             []
         ]
     },
-
     {
         "id": "busstatus_mqtt_in",
         "type": "mqtt in",
@@ -336,7 +340,6 @@
         "y": 460,
         "wires": []
     },
-
     {
         "id": "busarrival_mqtt_in",
         "type": "mqtt in",
@@ -360,9 +363,31 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Bus Arrival Request",
-        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-arrival`;\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-arrival`;\nreturn msg;",
         "outputs": 1,
         "x": 440,
+        "y": 540,
+        "wires": [
+            [
+                "busarrival_set_headers"
+            ]
+        ]
+    },
+    {
+        "id": "busarrival_set_headers",
+        "type": "change",
+        "z": "tab_iot_bridge",
+        "name": "Set Headers",
+        "rules": [
+            {
+                "t": "set",
+                "p": "headers",
+                "pt": "msg",
+                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
+                "tot": "json"
+            }
+        ],
+        "x": 620,
         "y": 540,
         "wires": [
             [
@@ -399,7 +424,6 @@
         "y": 540,
         "wires": []
     },
-
     {
         "id": "busdeparture_mqtt_in",
         "type": "mqtt in",
@@ -423,9 +447,31 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Bus Departure Request",
-        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-departure`;\nmsg.payload = {};\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-departure`;\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 450,
+        "y": 620,
+        "wires": [
+            [
+                "busdeparture_set_headers"
+            ]
+        ]
+    },
+    {
+        "id": "busdeparture_set_headers",
+        "type": "change",
+        "z": "tab_iot_bridge",
+        "name": "Set Headers",
+        "rules": [
+            {
+                "t": "set",
+                "p": "headers",
+                "pt": "msg",
+                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
+                "tot": "json"
+            }
+        ],
+        "x": 630,
         "y": 620,
         "wires": [
             [
@@ -462,7 +508,6 @@
         "y": 620,
         "wires": []
     },
-
     {
         "id": "card_mqtt_in",
         "type": "mqtt in",
@@ -519,8 +564,8 @@
         "name": "Build By Card Response",
         "func": "msg.payload = JSON.stringify({\n    req_id: msg.reqId,\n    ok: msg.statusCode === 200,\n    data: msg.payload ? msg.payload.data : null\n});\nmsg.topic = msg.replyTo;\nreturn msg;",
         "outputs": 1,
-        "x": 980,
-        "y": 700,
+        "x": 1130,
+        "y": 680,
         "wires": [
             [
                 "card_mqtt_out"
@@ -536,11 +581,10 @@
         "qos": "1",
         "retain": "",
         "broker": "broker_mosquitto",
-        "x": 1220,
-        "y": 700,
+        "x": 1380,
+        "y": 680,
         "wires": []
     },
-
     {
         "id": "ticketactive_mqtt_in",
         "type": "mqtt in",
@@ -618,7 +662,6 @@
         "y": 780,
         "wires": []
     },
-
     {
         "id": "stopsroute_mqtt_in",
         "type": "mqtt in",
@@ -696,7 +739,6 @@
         "y": 860,
         "wires": []
     },
-
     {
         "id": "ticketcreate_mqtt_in",
         "type": "mqtt in",
@@ -774,7 +816,6 @@
         "y": 940,
         "wires": []
     },
-
     {
         "id": "ticketcheckout_mqtt_in",
         "type": "mqtt in",
@@ -850,6 +891,54 @@
         "broker": "broker_mosquitto",
         "x": 1190,
         "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "6c0cc695cb6db9c9",
+        "type": "function",
+        "z": "addc359b5a209750",
+        "name": "function 1",
+        "func": "const metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total 1\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${flow.get('msg_count') || 0}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 220,
+        "wires": [
+            [
+                "74a8a6b5bf3ef9e2"
+            ]
+        ]
+    },
+    {
+        "id": "3281e76ca3033ff5",
+        "type": "http in",
+        "z": "addc359b5a209750",
+        "name": "",
+        "url": "/metrics",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 70,
+        "y": 220,
+        "wires": [
+            [
+                "6c0cc695cb6db9c9"
+            ]
+        ]
+    },
+    {
+        "id": "74a8a6b5bf3ef9e2",
+        "type": "http response",
+        "z": "addc359b5a209750",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 370,
+        "y": 220,
         "wires": []
     }
 ]
