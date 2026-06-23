@@ -6,12 +6,20 @@
         "disabled": false
     },
     {
+        "id": "addc359b5a209750",
+        "type": "tab",
+        "label": "Metrics",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
         "id": "broker_mosquitto",
         "type": "mqtt-broker",
-        "name": "EMQX Public",
-        "broker": "broker.emqx.io",
+        "name": "Mosquitto Local",
+        "broker": "mosquitto",
         "port": "1883",
-        "clientid": "nodered_bridge_fauzan",
+        "clientid": "nodered_bridge",
         "autoConnect": true,
         "usetls": false,
         "protocolVersion": "4",
@@ -19,8 +27,8 @@
         "cleansession": true,
         "autoUnsubscribe": true,
         "credentials": {
-            "user": "",
-            "password": ""
+            "user": "iot_user",
+            "password": "iotpassword"
         },
         "birthTopic": "",
         "birthQos": "0",
@@ -36,7 +44,6 @@
         "userProps": "",
         "sessionExpiry": ""
     },
-
     {
         "id": "gps_mqtt_in",
         "type": "mqtt in",
@@ -66,29 +73,7 @@
         "y": 100,
         "wires": [
             [
-                "gps_set_headers"
-            ]
-        ]
-    },
-    {
-        "id": "gps_set_headers",
-        "type": "change",
-        "z": "tab_iot_bridge",
-        "name": "Set Headers",
-        "rules": [
-            {
-                "t": "set",
-                "p": "headers",
-                "pt": "msg",
-                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
-                "tot": "json"
-            }
-        ],
-        "x": 570,
-        "y": 100,
-        "wires": [
-            [
-                "gps_http_request"
+                "gps_set_auth"
             ]
         ]
     },
@@ -123,7 +108,6 @@
         "y": 100,
         "wires": []
     },
-
     {
         "id": "pax_mqtt_in",
         "type": "mqtt in",
@@ -153,29 +137,7 @@
         "y": 220,
         "wires": [
             [
-                "pax_set_headers"
-            ]
-        ]
-    },
-    {
-        "id": "pax_set_headers",
-        "type": "change",
-        "z": "tab_iot_bridge",
-        "name": "Set Headers",
-        "rules": [
-            {
-                "t": "set",
-                "p": "headers",
-                "pt": "msg",
-                "to": "{ \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" }",
-                "tot": "json"
-            }
-        ],
-        "x": 600,
-        "y": 220,
-        "wires": [
-            [
-                "pax_http_request"
+                "pax_set_auth"
             ]
         ]
     },
@@ -208,7 +170,6 @@
         "y": 220,
         "wires": []
     },
-
     {
         "id": "catch_gateway_down",
         "type": "catch",
@@ -258,7 +219,6 @@
             []
         ]
     },
-
     {
         "id": "busstatus_mqtt_in",
         "type": "mqtt in",
@@ -282,7 +242,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Bus Status Request",
-        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-status`;\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nconst token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-status`;\nreturn msg;",
         "outputs": 1,
         "x": 430,
         "y": 460,
@@ -336,7 +296,6 @@
         "y": 460,
         "wires": []
     },
-
     {
         "id": "busarrival_mqtt_in",
         "type": "mqtt in",
@@ -360,13 +319,13 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Bus Arrival Request",
-        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-arrival`;\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-arrival`;\nreturn msg;",
         "outputs": 1,
         "x": 440,
         "y": 540,
         "wires": [
             [
-                "busarrival_http"
+                "busarrival_set_auth"
             ]
         ]
     },
@@ -399,7 +358,6 @@
         "y": 540,
         "wires": []
     },
-
     {
         "id": "busdeparture_mqtt_in",
         "type": "mqtt in",
@@ -423,13 +381,13 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Bus Departure Request",
-        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-departure`;\nmsg.payload = {};\nreturn msg;",
+        "func": "const parts = msg.topic.split('/');\nconst stopId = parts[2];\nmsg.url = `http://api-gateway:3000/api/stops/${stopId}/bus-departure`;\nmsg.payload = {};\nreturn msg;",
         "outputs": 1,
         "x": 450,
         "y": 620,
         "wires": [
             [
-                "busdeparture_http"
+                "busdeparture_set_auth"
             ]
         ]
     },
@@ -462,7 +420,6 @@
         "y": 620,
         "wires": []
     },
-
     {
         "id": "card_mqtt_in",
         "type": "mqtt in",
@@ -486,7 +443,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse By Card Request",
-        "func": "msg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/passengers/by-card/${msg.payload.card_number}`;\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = `http://api-gateway:3000/api/passengers/by-card/${msg.payload.card_number}`;\nreturn msg;",
         "outputs": 1,
         "x": 450,
         "y": 700,
@@ -519,8 +476,8 @@
         "name": "Build By Card Response",
         "func": "msg.payload = JSON.stringify({\n    req_id: msg.reqId,\n    ok: msg.statusCode === 200,\n    data: msg.payload ? msg.payload.data : null\n});\nmsg.topic = msg.replyTo;\nreturn msg;",
         "outputs": 1,
-        "x": 980,
-        "y": 700,
+        "x": 1130,
+        "y": 680,
         "wires": [
             [
                 "card_mqtt_out"
@@ -536,11 +493,10 @@
         "qos": "1",
         "retain": "",
         "broker": "broker_mosquitto",
-        "x": 1220,
-        "y": 700,
+        "x": 1380,
+        "y": 680,
         "wires": []
     },
-
     {
         "id": "ticketactive_mqtt_in",
         "type": "mqtt in",
@@ -564,7 +520,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Tickets Active Request",
-        "func": "msg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/tickets/active/${msg.payload.passenger_id}`;\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = `http://api-gateway:3000/api/tickets/active/${msg.payload.passenger_id}`;\nreturn msg;",
         "outputs": 1,
         "x": 460,
         "y": 780,
@@ -618,7 +574,6 @@
         "y": 780,
         "wires": []
     },
-
     {
         "id": "stopsroute_mqtt_in",
         "type": "mqtt in",
@@ -642,7 +597,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Stops Route Request",
-        "func": "msg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = `http://api-gateway:3000/api/stops/route/${msg.payload.route_id}/except/${msg.payload.except_stop_id}`;\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = `http://api-gateway:3000/api/stops/route/${msg.payload.route_id}/except/${msg.payload.except_stop_id}`;\nreturn msg;",
         "outputs": 1,
         "x": 450,
         "y": 860,
@@ -696,7 +651,6 @@
         "y": 860,
         "wires": []
     },
-
     {
         "id": "ticketcreate_mqtt_in",
         "type": "mqtt in",
@@ -720,7 +674,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Check-And-Create Request",
-        "func": "msg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = \"http://api-gateway:3000/api/tickets/check-and-create\";\nmsg.payload = {\n    card_number: msg.payload.card_number,\n    origin_stop_id: msg.payload.origin_stop_id,\n    dest_stop_id: msg.payload.dest_stop_id\n};\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = \"http://api-gateway:3000/api/tickets/check-and-create\";\nmsg.payload = {\n    card_number: msg.payload.card_number,\n    origin_stop_id: msg.payload.origin_stop_id,\n    dest_stop_id: msg.payload.dest_stop_id\n};\nreturn msg;",
         "outputs": 1,
         "x": 480,
         "y": 940,
@@ -774,7 +728,6 @@
         "y": 940,
         "wires": []
     },
-
     {
         "id": "ticketcheckout_mqtt_in",
         "type": "mqtt in",
@@ -798,7 +751,7 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Parse Checkout Request",
-        "func": "\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"X-IoT-Key\": \"iot-secret-key\" };\nmsg.url = \"http://api-gateway:3000/api/tickets/checkout\";\nmsg.payload = {\n    card_number: msg.payload.card_number,\n    exit_stop_id: msg.payload.exit_stop_id\n};\nreturn msg;",
+        "func": "\nconst token = flow.get('iot_access_token');\nmsg.reqId = msg.payload.req_id;\nmsg.replyTo = msg.payload.reply_to;\nmsg.headers = { \"Content-Type\": \"application/json\", \"Authorization\": \"Bearer \" + (token || '') };\nmsg.url = \"http://api-gateway:3000/api/tickets/checkout\";\nmsg.payload = {\n    card_number: msg.payload.card_number,\n    exit_stop_id: msg.payload.exit_stop_id\n};\nreturn msg;",
         "outputs": 1,
         "x": 440,
         "y": 1020,
@@ -850,6 +803,203 @@
         "broker": "broker_mosquitto",
         "x": 1190,
         "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "iot_token_inject",
+        "type": "inject",
+        "z": "tab_iot_bridge",
+        "name": "Fetch Token on Start",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "3000",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.5,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 160,
+        "y": 30,
+        "wires": [
+            [
+                "iot_get_token"
+            ]
+        ]
+    },
+    {
+        "id": "iot_get_token",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Prepare Token Request",
+        "func": "msg.payload = 'grant_type=client_credentials&client_id=node-red-iot&client_secret=nodered-iot-secret';\nmsg.headers = {\n    'Content-Type': 'application/x-www-form-urlencoded'\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 420,
+        "y": 30,
+        "wires": [
+            [
+                "iot_token_http"
+            ]
+        ]
+    },
+    {
+        "id": "gps_set_auth",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Set Auth Header",
+        "func": "const token = flow.get('iot_access_token');\nnode.warn(\"TOKEN IN FLOW: \" + (token ? token.substring(0, 20) + '...' : 'NULL'));\nif (!token) {\n    node.warn('No IoT token yet, sending without valid token (will surface as 401, not silently dropped)');\n}\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + (token || '')\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 570,
+        "y": 100,
+        "wires": [
+            [
+                "gps_http_request"
+            ]
+        ]
+    },
+    {
+        "id": "pax_set_auth",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Set Auth Header",
+        "func": "const token = flow.get('iot_access_token');\nif (!token) { node.warn('No IoT token yet'); return null; }\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + token\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 600,
+        "y": 220,
+        "wires": [
+            [
+                "pax_http_request"
+            ]
+        ]
+    },
+    {
+        "id": "busarrival_set_auth",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Set Auth Header",
+        "func": "const token = flow.get('iot_access_token');\nif (!token) { node.warn('No IoT token yet'); return null; }\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + token\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 620,
+        "y": 540,
+        "wires": [
+            [
+                "busarrival_http"
+            ]
+        ]
+    },
+    {
+        "id": "busdeparture_set_auth",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Set Auth Header",
+        "func": "const token = flow.get('iot_access_token');\nif (!token) { node.warn('No IoT token yet'); return null; }\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + token\n};\nreturn msg;",
+        "outputs": 1,
+        "x": 630,
+        "y": 620,
+        "wires": [
+            [
+                "busdeparture_http"
+            ]
+        ]
+    },
+    {
+        "id": "iot_token_http",
+        "type": "http request",
+        "z": "tab_iot_bridge",
+        "name": "POST /oauth/token",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://oauth-server:3002/oauth/token",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "str",
+                "keyValue": "Content-Type",
+                "valueType": "str",
+                "valueValue": "application/x-www-form-urlencoded"
+            }
+        ],
+        "x": 660,
+        "y": 30,
+        "wires": [
+            [
+                "iot_save_token"
+            ]
+        ]
+    },
+    {
+        "id": "iot_save_token",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Save Token",
+        "func": "if (msg.payload && msg.payload.accessToken) {\n    flow.set('iot_access_token', msg.payload.accessToken);\n    node.status({ fill: 'green', shape: 'dot', text: 'Token OK' });\n} else {\n    node.warn('Token fetch failed: ' + JSON.stringify(msg.payload));\n    node.status({ fill: 'red', shape: 'ring', text: 'Token FAILED' });\n}\nreturn null;",
+        "outputs": 1,
+        "x": 840,
+        "y": 30,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "6c0cc695cb6db9c9",
+        "type": "function",
+        "z": "addc359b5a209750",
+        "name": "function 1",
+        "func": "const metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total 1\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${flow.get('msg_count') || 0}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 220,
+        "wires": [
+            [
+                "74a8a6b5bf3ef9e2"
+            ]
+        ]
+    },
+    {
+        "id": "3281e76ca3033ff5",
+        "type": "http in",
+        "z": "addc359b5a209750",
+        "name": "",
+        "url": "/metrics",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 70,
+        "y": 220,
+        "wires": [
+            [
+                "6c0cc695cb6db9c9"
+            ]
+        ]
+    },
+    {
+        "id": "74a8a6b5bf3ef9e2",
+        "type": "http response",
+        "z": "addc359b5a209750",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 370,
+        "y": 220,
         "wires": []
     }
 ]

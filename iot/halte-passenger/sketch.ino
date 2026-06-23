@@ -1,5 +1,5 @@
+// halte-passenger
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
 #include <MFRC522.h>
@@ -7,8 +7,15 @@
 #include <Adafruit_ILI9341.h>
 #include <PubSubClient.h>
 
+struct StopOption {
+  int stop_id;
+  String name;
+};
+
+#include "config.h"
+
 // config
-#define STOP_ID 1
+#define STOP_ID 2
 #define RFID_SS_MASUK 5
 #define RFID_RST_MASUK 22
 #define RFID_SS_KELUAR 15
@@ -24,11 +31,11 @@
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
-const char* MQTT_SERVER = "192.168.1.100";
-const int MQTT_PORT = 1883;
-const char* MQTT_USER = "iot";
-const char* MQTT_PASS = "iotpassword";
-const char* API_BASE = "http://192.168.1.100:3000";
+const char* MQTT_SERVER = MQTT_SERVER_HOST;
+const int MQTT_PORT = MQTT_SERVER_PORT;
+const char* MQTT_USER = MQTT_USER_STR;
+const char* MQTT_PASS = MQTT_PASS_STR;
+const char* API_BASE = API_BASE_URL;
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -44,6 +51,12 @@ Adafruit_ILI9341 tft(TFT_CS, TFT_DC, TFT_RST);
 // state halte
 int currentLoad = 0;
 
+int totalMasuk = 0;
+int totalKeluar = 0;
+
+unsigned long lastPassengerLog = 0;
+#define PASSENGER_LOG_INTERVAL 30000
+
 // state mesin ui untuk scanner masuk
 enum UIState { IDLE, VALIDATE_CARD, SHOW_STOPS, WAIT_SELECT, CONFIRM_TICKET };
 UIState uiState = IDLE;
@@ -51,17 +64,19 @@ UIState uiState = IDLE;
 String  pendingCardNumber = "";
 int selectedDestIdx = 0;
 
-struct StopOption {
-  int stop_id;
-  String name;
-};
-
 StopOption stopOptions[5];
 int stopCount = 0;
 
 // polling bus info
 unsigned long lastBusPoll = 0;
 #define BUS_POLL_INTERVAL 5000
+
+char replyTopic[40];
+
+String pendingReqId = "";
+
+volatile bool mqttResponseReceived = false;
+String mqttResponsePayload = "";
 
 void selectTFT() {
   digitalWrite(RFID_SS_MASUK, HIGH);
@@ -104,24 +119,39 @@ void setup() {
   selectTFT();
 
   tft.begin();
-  tft.setRotation(1);
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextSize(2);
-  tft.println("Halte IoT");
-  tft.printf("Halte ID: %d\n", STOP_ID);
+  tft.printf("Halte id: %d\n", STOP_ID);
 
   deselectTFT();
 
   connectWifi();
 
+  snprintf(replyTopic, sizeof(replyTopic), "city/stop/%d/reply", STOP_ID);
+
+  mqttClient.setBufferSize(1024);
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setCallback(mqttCallback);
   connectMqtt();
 
   showIdle();
 }
 
 void loop() {
+
+  if (millis() - lastPassengerLog >= PASSENGER_LOG_INTERVAL) {
+
+    Serial.printf(
+      "[STATUS 30s] MASUK=%d KELUAR=%d CURRENT_LOAD=%d\n",
+      totalMasuk,
+      totalKeluar,
+      currentLoad
+    );
+
+    lastPassengerLog = millis();
+  }
+
   // poll info bus di halte ini
   if (millis() - lastBusPoll >= BUS_POLL_INTERVAL) {
     pollBusAtStop();
@@ -169,24 +199,28 @@ void loop() {
   delay(100);
 }
 
-void publishPassengerCount(int boarded, int alighted, int current_load) {
+void publishPassengerCount(int current_load) {
   if (!mqttClient.connected()) connectMqtt();
 
   char topic[40];
   snprintf(topic, sizeof(topic), "city/stop/%d/passengers", STOP_ID);
 
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<128> doc;
   doc["stop_id"] = STOP_ID;
-  doc["bus_id"] = JsonVariant(); // null
-  doc["boarded"] = boarded;
-  doc["alighted"] = alighted;
   doc["current_load"] = current_load;
-  doc["timestamp"] = millis();
 
-  char buf[200];
+  char buf[128];
   serializeJson(doc, buf);
-  mqttClient.publish(topic, buf);
-  Serial.printf("[MQTT] halte publish: %s\n", buf);
+
+  bool ok = mqttClient.publish(topic, buf);
+
+  Serial.printf(
+    "[MQTT PASSENGER] %s | current_load=%d | masuk=%d | keluar=%d\n",
+    ok ? "PUBLISH OK" : "PUBLISH FAIL",
+    current_load,
+    totalMasuk,
+    totalKeluar
+  );
 }
 
 void connectMqtt() {
@@ -195,6 +229,7 @@ void connectMqtt() {
   while (!mqttClient.connected()) {
     if (mqttClient.connect(clientId, MQTT_USER, MQTT_PASS)) {
       Serial.printf("[MQTT] halte %d konek\n", STOP_ID);
+      mqttClient.subscribe(replyTopic); // subscribe topic reply buat nerima balasan request
     } else {
       delay(2000);
     }
@@ -278,34 +313,30 @@ void processTicketPurchase(String cardNumber, int originStop, int destStop) {
 
   deselectTFT();
 
-  // POST ke passenger service buat check saldo user dan buat tiket
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/tickets/check-and-create";
-  http.begin(url);
-  http.addHeader("Content-Type", "application/json");
-
-  StaticJsonDocument<256> doc;
-  doc["card_number"] = cardNumber;
-  doc["origin_stop_id"] = originStop;
-  doc["dest_stop_id"] = destStop;
+  StaticJsonDocument<256> reqDoc;
+  reqDoc["card_number"] = cardNumber;
+  reqDoc["origin_stop_id"] = originStop;
+  reqDoc["dest_stop_id"] = destStop;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
   String body;
-  serializeJson(doc, body);
+  serializeJson(reqDoc, body);
 
-  int code = http.POST(body);
-  String resp = http.getString();
-  http.end();
+  String resp;
+  bool success = mqttRequestResponse("city/tickets/check-and-create", body, resp);
 
-  if (code == 200 || code == 201) {
+  StaticJsonDocument<256> respDoc;
+  if (success) deserializeJson(respDoc, resp);
+
+  if (success && respDoc["ok"] == true) {
     // jika berhasil: current_load++
     currentLoad++;
-    publishPassengerCount(1, 0, currentLoad) 
+    publishPassengerCount(currentLoad);
     showMessage("Tiket siap\nWelcome to halte", ILI9341_GREEN);
     delay(2000);
   } else {
     // jika ada error
-    StaticJsonDocument<256> errDoc;
-    deserializeJson(errDoc, resp);
-    String msg = errDoc["message"] | "Gagal beli tiket";
+    String msg = respDoc["message"] | "Gagal beli tiket";
     showMessage(msg, ILI9341_RED);
     delay(2000);
   }
@@ -326,153 +357,199 @@ void handleCardKeluar(String cardNumber) {
 
   deselectTFT();
 
-  // POST ke passenger service untuk ubah status tiket jadi 'used'
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/tickets/checkout";
-  http.begin(url);
-  http.addHeader("Content-Type", "application/json");
-
-  StaticJsonDocument<128> doc;
-  doc["card_number"] = cardNumber;
-  doc["exit_stop_id"] = STOP_ID;
+  StaticJsonDocument<128> reqDoc;
+  reqDoc["card_number"] = cardNumber;
+  reqDoc["exit_stop_id"] = STOP_ID;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
   String body;
-  serializeJson(doc, body);
+  serializeJson(reqDoc, body);
 
-  int code = http.POST(body);
-  String resp = http.getString();
-  http.end();
+  String resp;
+  bool success = mqttRequestResponse("city/tickets/checkout", body, resp);
 
-  if (code == 200) {
+  StaticJsonDocument<256> respDoc;
+  if (success) deserializeJson(respDoc, resp);
+
+  if (success && respDoc["ok"] == true) {
     if (currentLoad > 0) currentLoad--;
-    publishPassengerCount(0, 1, currentLoad) 
+    publishPassengerCount(currentLoad);
     showMessage("Selamat jalan!\nTerima kasih", ILI9341_GREEN);
   } else {
-    StaticJsonDocument<256> errDoc;
-    deserializeJson(errDoc, resp);
-    String msg = errDoc["message"] | "Gagal checkout";
+    String msg = respDoc["message"] | "Gagal checkout";
     showMessage(msg, ILI9341_YELLOW);
   }
   delay(2000);
   showIdle();
+  if (uiState == IDLE) {
+    showIdle();
+  }
 }
 
 // pool bus info
 void pollBusAtStop() {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/stops/" + String(STOP_ID) + "/bus-status";
-  http.begin(url);
-  int code = http.GET();
-  if (code == 200) {
-    String resp = http.getString();
-    StaticJsonDocument<256> doc;
-    deserializeJson(doc, resp);
+  char topic[40];
+  snprintf(topic, sizeof(topic), "city/stop/%d/bus-status/get", STOP_ID);
 
-    if (!doc["data"]["bus_id"].isNull()) {
-      int busId    = doc["data"]["bus_id"];
-      int boarded  = doc["data"]["boarded"]  | 0;
-      int alighted = doc["data"]["alighted"] | 0;
-
-      selectTFT();
-      
-      tft.fillRect(0, 100, 320, 30, ILI9341_BLACK);
-      tft.setCursor(0, 100);
-      tft.setTextColor(ILI9341_CYAN);
-      tft.printf("Bus %d di halte\nNaik:%d Turun:%d", busId, boarded, alighted);
-      tft.setTextColor(ILI9341_WHITE);
-
-      deselectTFT();
-    }
-  }
-  http.end();
-}
-
-// update total orang di halte
-void updateCurrentLoad() {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/passengers/count";
-  http.begin(url);
-  http.addHeader("Content-Type", "application/json");
-
-  StaticJsonDocument<64> doc;
-  doc["stop_id"] = STOP_ID;
-  doc["current_load"] = currentLoad;
+  StaticJsonDocument<128> reqDoc;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
   String body;
-  serializeJson(doc, body);
+  serializeJson(reqDoc, body);
 
-  int code = http.POST(body);
-  Serial.printf("[HTTP] POST current_load=%d jadi %d\n", currentLoad, code);
-  http.end();
+  String resp;
+  if (!mqttRequestResponse(topic, body, resp)) {
+    return;
+  }
+
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, resp);
+
+  if (!doc["data"]["bus_id"].isNull()) {
+    int busId = doc["data"]["bus_id"].as<String>().toInt();
+    int boarded = doc["data"]["boarded"].as<String>().toInt();
+    int alighted = doc["data"]["alighted"].as<String>().toInt();
+
+    selectTFT();
+    tft.fillRect(0, 100, 320, 30, ILI9341_BLACK);
+    tft.setCursor(0, 100);
+    tft.setTextColor(ILI9341_CYAN);
+    tft.printf("Bus %d di halte\nNaik:%d Turun:%d", busId, boarded, alighted);
+    tft.setTextColor(ILI9341_WHITE);
+    deselectTFT();
+  }
 }
 
 // validasi kartu
 bool validateCard(String cardNumber, int& passengerId, float& balance) {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/passengers/by-card/" + String(cardNumber);
-  http.begin(url);
-  int code = http.GET();
-  if (code == 200) {
-    String resp = http.getString();
-    StaticJsonDocument<256> doc;
-    deserializeJson(doc, resp);
-    passengerId = doc["data"]["id"] | 0;
-    balance     = doc["data"]["balance"] | 0.0f;
-    http.end();
-    return passengerId > 0;
+  StaticJsonDocument<192> reqDoc;
+  reqDoc["card_number"] = cardNumber;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
+  String body;
+  serializeJson(reqDoc, body);
+
+  String resp;
+  if (!mqttRequestResponse("city/passengers/by-card/get", body, resp)) {
+    return false;
   }
-  http.end();
-  return false;
+
+  StaticJsonDocument<256> doc;
+  deserializeJson(doc, resp);
+
+  if (doc["data"].isNull()) {
+    passengerId = 0;
+    return false;
+  }
+
+  passengerId = doc["data"]["id"].as<String>().toInt();
+  balance     = doc["data"]["balance"].as<String>().toFloat();
+
+  return passengerId > 0;
 }
 
 // apakah orang itu belum keluar halte
 bool hasActiveTicket(int passengerId) {
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/tickets/active/" + String(passengerId);
-  http.begin(url);
-  int code = http.GET();
+  StaticJsonDocument<128> reqDoc;
+  reqDoc["passenger_id"] = passengerId;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
+  String body;
+  serializeJson(reqDoc, body);
+
+  String resp;
   bool hasActive = false;
-  if (code == 200) {
-    String resp = http.getString();
+  if (mqttRequestResponse("city/tickets/active/get", body, resp)) {
     StaticJsonDocument<128> doc;
     deserializeJson(doc, resp);
     hasActive = doc["data"]["has_active"] | false;
   }
-  http.end();
   return hasActive;
 }
 
 // ambil semua halte di rute ini, selain halte ini
 int fetchStopsOnRoute(int currentStopId, StopOption* options) {
   int routeId = getRouteIdForStop(currentStopId);
-  HTTPClient http;
-  String url = String(API_BASE) + "/api/stops/route/" + String(routeId) + "/except/" + String(currentStopId);
-  http.begin(url);
-  int code = http.GET();
+
+  StaticJsonDocument<192> reqDoc;
+  reqDoc["route_id"] = routeId;
+  reqDoc["except_stop_id"] = currentStopId;
+  reqDoc["req_id"] = String(millis());
+  reqDoc["reply_to"] = replyTopic;
+  String body;
+  serializeJson(reqDoc, body);
+
+  String resp;
   int count = 0;
-  if (code == 200) {
-    String resp = http.getString();
+  if (mqttRequestResponse("city/stops/route/get", body, resp)) {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, resp);
     JsonArray arr = doc["data"].as<JsonArray>();
     for (JsonObject s : arr) {
       if (count >= 5) break;
-      options[count].stop_id = s["id"];
+      options[count].stop_id = s["id"].as<String>().toInt();
       options[count].name = s["name"].as<String>();
       count++;
     }
   }
-  http.end();
   return count;
+}
+
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (unsigned int i = 0; i < length; i++) {
+    msg += (char)payload[i];
+  }
+
+  StaticJsonDocument<256> check;
+  DeserializationError err = deserializeJson(check, msg);
+  if (!err) {
+    String incomingReqId = check["req_id"].as<String>();
+    if (incomingReqId != pendingReqId) {
+      Serial.printf("[CALLBACK] IGNORED, req_id beda (expect=%s got=%s)\n", pendingReqId.c_str(), incomingReqId.c_str());
+      return;
+    }
+  }
+
+  Serial.printf("[CALLBACK] topic=%s payload=%s\n", topic, msg.c_str());
+  mqttResponsePayload = msg;
+  mqttResponseReceived = true;
+}
+
+bool mqttRequestResponse(String topic, String payload, String &response) {
+  StaticJsonDocument<256> reqCheck;
+  deserializeJson(reqCheck, payload);
+  pendingReqId = reqCheck["req_id"].as<String>();
+
+  mqttResponseReceived = false;
+  mqttResponsePayload = "";
+  mqttClient.publish(topic.c_str(), payload.c_str());
+
+  unsigned long start = millis();
+  while (!mqttResponseReceived && millis() - start < 30000) {
+    mqttClient.loop();
+    delay(10);
+  }
+
+  if (mqttResponseReceived) {
+    response = mqttResponsePayload;
+    return true;
+  }
+
+  return false;
 }
 
 // ui
 String readCard(MFRC522& reader) {
-  String card = "";
+  String uid = "";
+
   for (byte i = 0; i < reader.uid.size; i++) {
-    if (reader.uid.uidByte[i] < 0x10) card += "0";
-    card += String(reader.uid.uidByte[i], HEX);
+    char buf[3];
+    sprintf(buf, "%02X", reader.uid.uidByte[i]);
+    uid += buf;
   }
-  card.toUpperCase();
-  return card;
+
+  return uid;
 }
 
 void showIdle() {
@@ -481,7 +558,7 @@ void showIdle() {
   tft.fillScreen(ILI9341_BLACK);
   tft.setCursor(0,0);
   tft.setTextColor(ILI9341_WHITE);
-  tft.printf("Halte ID: %d\n", STOP_ID);
+  tft.printf("Halte id: %d\n", STOP_ID);
   tft.printf("Orang: %d\n", currentLoad);
   tft.println("\nTap kartu untuk");
   tft.println("masuk halte");

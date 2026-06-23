@@ -23,6 +23,8 @@ RUN docker-php-ext-configure intl \
         mysqli \
         sockets
 
+RUN pecl install apcu && docker-php-ext-enable apcu
+RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
 # ---------------------------------------------------------------------------
 # 3. Composer
 # ---------------------------------------------------------------------------
@@ -38,7 +40,7 @@ WORKDIR /var/www/html
 #    Copy composer files first for layer cache, then full source.
 # ---------------------------------------------------------------------------
 COPY composer.json composer.lock* ./
-RUN composer install --optimize-autoloader --no-interaction --no-progress
+RUN composer install --optimize-autoloader --no-interaction --no-progress --ignore-platform-reqs
 
 # ---------------------------------------------------------------------------
 # 6. Copy full application source (overwrites composer files already there)

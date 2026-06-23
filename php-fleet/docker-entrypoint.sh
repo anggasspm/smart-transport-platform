@@ -15,7 +15,7 @@ CI_ENVIRONMENT=${CI_ENVIRONMENT:-production}
 
 app.baseURL=http://localhost:8001/
 
-# Database — CodeIgniter 4 format
+# Database â€” CodeIgniter 4 format
 database.default.hostname=${DB_HOST:-mysql}
 database.default.database=${DB_NAME:-smarttransport}
 database.default.username=${DB_USER:-root}
