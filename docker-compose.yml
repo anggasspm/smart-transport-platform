@@ -62,9 +62,13 @@ services:
     restart: unless-stopped
     ports:
       - "1883:1883"
+    command: >
+      sh -c "
+        mosquitto_passwd -c -b /mosquitto/config/passwd iot_user iotpassword &&
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+      "
     volumes:
       - ./iot/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./iot/passwd:/mosquitto/config/passwd
       - mosquitto-data:/mosquitto/data
     networks:
       - smarttransport-net
