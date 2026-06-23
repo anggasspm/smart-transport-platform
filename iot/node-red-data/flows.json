@@ -16,16 +16,20 @@
     {
         "id": "broker_mosquitto",
         "type": "mqtt-broker",
-        "name": "EMQX Public",
-        "broker": "broker.emqx.io",
+        "name": "Mosquitto Local",
+        "broker": "mosquitto",
         "port": "1883",
-        "clientid": "nodered_bridge_fauzan",
+        "clientid": "nodered_bridge",
         "autoConnect": true,
         "usetls": false,
         "protocolVersion": "4",
         "keepalive": "60",
         "cleansession": true,
         "autoUnsubscribe": true,
+        "credentials": {
+            "user": "iot_user",
+            "password": "iotpassword"
+        },
         "birthTopic": "",
         "birthQos": "0",
         "birthPayload": "",
