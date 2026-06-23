@@ -1,46 +1,52 @@
-# Environment
+# ENVIRONMENT & SECRETS (GLOBAL)
 .env
-*.env.local
+**/.env
+*.env.backup
 
-# Dependencies
-node_modules/
-vendor/
+# 1. PHP / CODEIGNITER 4 (php-fleet, php-passenger, php-stop)
+**/vendor/
+**/system/
 
-# Python
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/
+# Writable folders (Abaikan isinya, pertahankan struktur foldernya)
+**/writable/cache/*
+!**/writable/cache/index.html
+**/writable/logs/*
+!**/writable/logs/index.html
+**/writable/session/*
+!**/writable/session/index.html
+**/writable/uploads/*
+!**/writable/uploads/index.html
+**/writable/debugbar/*
+!**/writable/debugbar/index.html
 
-# ML Models
-python-ml-service/models/*.pkl
-python-ml-service/data/*.csv
+# Testing PHP
+**/build/
+**/results/
+**/tests/coverage*/
+**/phpunit.xml
+**/.phpunit.cache/
 
-# Logs
-*.log
-logs/
+# 2. NODE.JS (express-gateway)
+**/node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
 
-# Docker
-.docker/
+# 3. PYTHON (python-ml-service)
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.venv/
+**/venv/
+**/env/
+**/.pytest_cache/
 
-# OS
+# 4. OS JUNK & IDE FILES (GLOBAL)
 .DS_Store
+**/.DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
+**/Thumbs.db
 .idea/
-
-# Database dump
-*.sql.bak
-
-# Passenger and Stop service logs
-.env
-vendor/
-writable/logs/
-writable/cache/
-writable/session/
-writable/uploads/
-writable/debugbar/
-*.log
+.vscode/
+**/*.swp
+**/*.bak
