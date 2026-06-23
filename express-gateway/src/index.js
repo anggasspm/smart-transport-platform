@@ -31,7 +31,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(apiLimiter);
+//app.use(apiLimiter);
 
 app.get('/health', (req, res) => {
     res.status(200).json({
