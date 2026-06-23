@@ -78,8 +78,29 @@ app.post('/oauth/token', async (req, res) => {
 });
 
 app.post('/oauth/introspect', async (req, res) => {
-    res.json({ active: true, message: "Token valid" });
+    const tokenFromBody = req.body && req.body.token;
+    const fakeReq = tokenFromBody
+        ? { headers: { authorization: 'Bearer ' + tokenFromBody }, query: {}, method: req.method }
+        : req;
+
+    const request = new OAuth2Server.Request(fakeReq);
+    const response = new OAuth2Server.Response(res);
+
+    try {
+        const tokenInfo = await oauth.authenticate(request, response);
+        res.json({
+            active: true,
+            client_id: tokenInfo.client ? tokenInfo.client.id : undefined,
+            scope: tokenInfo.scope,
+            exp: tokenInfo.accessTokenExpiresAt
+                ? Math.floor(new Date(tokenInfo.accessTokenExpiresAt).getTime() / 1000)
+                : undefined
+        });
+    } catch (err) {
+        res.status(200).json({ active: false, message: err.message });
+    }
 });
+
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`OAuth Server running on port ${PORT}`);

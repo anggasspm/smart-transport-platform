@@ -1,14 +1,42 @@
 module.exports = {
     getClient: async (clientId, clientSecret) => {
-        return { id: clientId, grants: ['password', 'client_credentials', 'refresh_token'], redirectUris: [] };
+        return { 
+            id: clientId, 
+            clientId: clientId,
+            clientSecret: clientSecret,
+            grants: ['password', 'client_credentials', 'refresh_token'], 
+            redirectUris: [] 
+        };
     },
     getUser: async (username, password) => {
         return { id: 1 };
     },
+    getUserFromClient: async (client) => {
+        return { id: client.id };
+    },
     saveToken: async (token, client, user) => {
-        return token;
+        const savedToken = {
+            accessToken: token.accessToken,
+            accessTokenExpiresAt: token.accessTokenExpiresAt,
+            refreshToken: token.refreshToken,
+            refreshTokenExpiresAt: token.refreshTokenExpiresAt,
+            scope: token.scope,
+            client: { id: client.id, clientId: client.clientId },
+            user: { id: user.id }
+        };
+        tokenStore.set(savedToken.accessToken, savedToken);
+        return savedToken;
     },
     getAccessToken: async (accessToken) => {
-        return { accessToken };
+        const saved = tokenStore.get(accessToken);
+        if (!saved) {
+            return null;
+        }
+        return saved;
+    },
+    revokeToken: async (token) => {
+        const existed = tokenStore.has(token.accessToken);
+        tokenStore.delete(token.accessToken);
+        return existed;
     }
 };
