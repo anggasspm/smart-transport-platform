@@ -21,4 +21,15 @@ class PassengerCountModel extends Model
         $id = $this->insert($data, true);
         return $this->find($id);
     }
+
+    // Ambil current_load dari data sebelumnya di halte yang sama
+    public function getPrevCount(int $stopId, int $currentId): int
+    {
+        $prev = $this->where('stop_id', $stopId)
+                     ->where('id <', $currentId)
+                     ->orderBy('recorded_at', 'DESC')
+                     ->first();
+
+        return $prev['current_load'] ?? 0;
+    }
 }
