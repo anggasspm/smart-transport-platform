@@ -95,8 +95,15 @@ class StopController extends BaseController
                 ->limit(1)->get()->getRowArray();
                 
         $prevLoad = $last['current_load'] ?? 0;
-        $newLoad = $prevLoad + $alighted - $boarded;
-        $newLoad = max(0, $newLoad);
+        
+        if ($boarded == 0 && $alighted == 0 && $last) {
+            $boarded  = $last['boarded'] ?? 0;
+            $alighted = $last['alighted'] ?? 0;
+
+            $newLoad = $prevLoad;
+        } else {
+            $newLoad = max(0, $prevLoad + $alighted - $boarded);
+        }
 
         $db->table('stop_passenger_counts')->insert([
             'stop_id' => $stopId,
@@ -149,10 +156,17 @@ class StopController extends BaseController
         if ($last) {
             $db->table('stop_passenger_counts')
                ->where('id', $last['id'])
-               ->update(['current_load' => $currentLoad, 'recorded_at' => date('Y-m-d H:i:s')]);
+               ->update([
+                    'current_load' => $currentLoad, 
+                    'boarded' => $last['boarded'] ?? 0,
+                    'alighted' => $last['alighted'] ?? 0,
+                    'recorded_at' => date('Y-m-d H:i:s')]);
         } else {
             $db->table('stop_passenger_counts')->insert([
                 'stop_id' => $stopId,
+                'bus_id' => $last['bus_id'],
+                'boarded' => $last['boarded'] ?? 0,
+                'alighted' => $last['alighted'] ?? 0,
                 'current_load' => $currentLoad,
                 'recorded_at' => date('Y-m-d H:i:s'),
             ]);
