@@ -93,13 +93,17 @@ class StopController extends BaseController
                 ->where('stop_id', $stopId)
                 ->orderBy('recorded_at', 'DESC')
                 ->limit(1)->get()->getRowArray();
+                
+        $prevLoad = $last['current_load'] ?? 0;
+        $newLoad = $prevLoad + $alighted - $boarded;
+        $newLoad = max(0, $newLoad);
 
         $db->table('stop_passenger_counts')->insert([
             'stop_id' => $stopId,
             'bus_id' => $busId,
             'boarded' => $boarded,
             'alighted' => $alighted,
-            'current_load' => $last['current_load'] ?? 0,
+            'current_load' => $newLoad,
             'recorded_at' => date('Y-m-d H:i:s'),
         ]);
 
