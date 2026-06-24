@@ -7,6 +7,7 @@ const authMiddleware = async (req, res, next) => {
     if (!authHeader) {
         return formatResponse(res, 'error', 401, null, 'Token tidak ditemukan', 'api-gateway');
     }
+    
     try {
         const token = authHeader.split(' ')[1];
         const response = await axios.post(
@@ -14,7 +15,12 @@ const authMiddleware = async (req, res, next) => {
             qs.stringify({ token }),
             { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         );
+        
         if (response.data.active) {
+            if (response.data.user_id) {
+                req.headers['x-user-id'] = response.data.user_id.toString();
+            }
+            
             return next();
         } else {
             return formatResponse(res, 'error', 401, null, 'Token tidak valid', 'api-gateway');
@@ -23,4 +29,5 @@ const authMiddleware = async (req, res, next) => {
         return formatResponse(res, 'error', 500, null, 'Gagal validasi token ke Auth Server', 'api-gateway');
     }
 };
+
 module.exports = authMiddleware;
