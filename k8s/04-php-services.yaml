@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-passenger
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: php-passenger }
+  template:
+    metadata:
+      labels: { app: php-passenger }
+    spec:
+      containers:
+        - name: php-passenger
+          image: smarttransport/php-passenger:latest
+          ports: [{ containerPort: 8000 }]
+          envFrom:
+            - configMapRef: { name: smarttransport-config }
+            - secretRef: { name: smarttransport-secret }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-passenger
+  namespace: smarttransport
+spec:
+  selector: { app: php-passenger }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-fleet
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: php-fleet }
+  template:
+    metadata:
+      labels: { app: php-fleet }
+    spec:
+      containers:
+        - name: php-fleet
+          image: smarttransport/php-fleet:latest
+          ports: [{ containerPort: 8001 }]
+          envFrom:
+            - configMapRef: { name: smarttransport-config }
+            - secretRef: { name: smarttransport-secret }
+          readinessProbe:
+            httpGet: { path: /health, port: 8001 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-fleet
+  namespace: smarttransport
+spec:
+  selector: { app: php-fleet }
+  ports: [{ port: 8001, targetPort: 8001 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php-stop
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: php-stop }
+  template:
+    metadata:
+      labels: { app: php-stop }
+    spec:
+      containers:
+        - name: php-stop
+          image: smarttransport/php-stop:latest
+          ports: [{ containerPort: 8002 }]
+          envFrom:
+            - configMapRef: { name: smarttransport-config }
+            - secretRef: { name: smarttransport-secret }
+          readinessProbe:
+            httpGet: { path: /health, port: 8002 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: php-stop
+  namespace: smarttransport
+spec:
+  selector: { app: php-stop }
+  ports: [{ port: 8002, targetPort: 8002 }]

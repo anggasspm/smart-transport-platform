@@ -1,0 +1,136 @@
+# --- MySQL ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: smarttransport
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mysql }
+  strategy: { type: Recreate }
+  template:
+    metadata:
+      labels: { app: mysql }
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports: [{ containerPort: 3306 }]
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: smarttransport-secret, key: MYSQL_ROOT_PASSWORD } }
+            - name: MYSQL_DATABASE
+              valueFrom: { configMapKeyRef: { name: smarttransport-config, key: DB_NAME } }
+          volumeMounts:
+            - { name: mysql-storage, mountPath: /var/lib/mysql }
+          readinessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim: { claimName: mysql-pvc }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: smarttransport
+spec:
+  selector: { app: mysql }
+  ports: [{ port: 3306, targetPort: 3306 }]
+---
+# --- RabbitMQ ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: rabbitmq }
+  template:
+    metadata:
+      labels: { app: rabbitmq }
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.12-management
+          ports: [{ containerPort: 5672 }, { containerPort: 15672 }]
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom: { secretKeyRef: { name: smarttransport-secret, key: RABBITMQ_USER } }
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom: { secretKeyRef: { name: smarttransport-secret, key: RABBITMQ_PASS } }
+          readinessProbe:
+            exec: { command: ["rabbitmq-diagnostics", "ping"] }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: smarttransport
+spec:
+  selector: { app: rabbitmq }
+  ports:
+    - { name: amqp, port: 5672, targetPort: 5672 }
+    - { name: mgmt, port: 15672, targetPort: 15672 }
+---
+# --- Mosquitto ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-conf
+  namespace: smarttransport
+data:
+  mosquitto.conf: |
+    listener 1883
+    allow_anonymous false
+    password_file /mosquitto/config/passwd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mosquitto
+  namespace: smarttransport
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mosquitto }
+  template:
+    metadata:
+      labels: { app: mosquitto }
+    spec:
+      containers:
+        - name: mosquitto
+          image: eclipse-mosquitto:2.0
+          ports: [{ containerPort: 1883 }]
+          volumeMounts:
+            - { name: mosquitto-conf, mountPath: /mosquitto/config/mosquitto.conf, subPath: mosquitto.conf }
+      volumes:
+        - name: mosquitto-conf
+          configMap: { name: mosquitto-conf }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto
+  namespace: smarttransport
+spec:
+  selector: { app: mosquitto }
+  ports: [{ port: 1883, targetPort: 1883 }]
