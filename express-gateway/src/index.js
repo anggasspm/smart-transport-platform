@@ -33,16 +33,32 @@ app.use((req, res, next) => {
 
 app.use(apiLimiter);
 
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+    const services = [
+        { name: 'oauth_server', url: 'http://oauth-server:3002/health' },
+        { name: 'php_passenger', url: 'http://php-passenger:8000/health' },
+        { name: 'php_fleet', url: 'http://php-fleet:8001/health' },
+        { name: 'php_stop', url: 'http://php-stop:8002/health' }
+    ];
+
+    const dependencies = {};
+
+    const checkPromises = services.map(async (service) => {
+        try {
+            await axios.get(service.url, { timeout: 3000 });
+            dependencies[service.name] = "UP";
+        } catch (error) {
+            dependencies[service.name] = "DOWN";
+        }
+    });
+
+    await Promise.all(checkPromises);
+
     res.status(200).json({
         status: "success",
         code: 200,
-        data: {
-            oauth_server: "checking...",
-            fleet_service: "checking...",
-            passenger_service: "checking..."
-        },
-        message: "Gateway is running",
+        data: dependencies,
+        message: "Gateway and dependencies checked",
         timestamp: new Date().toISOString(),
         service: "api-gateway"
     });
