@@ -4,12 +4,8 @@ const model = require('./model');
 const app = express();
 const PORT = 3002;
 
-// metrics
-
 const client = require('prom-client');
-
 const collectDefaultMetrics = client.collectDefaultMetrics;
-
 collectDefaultMetrics({ prefix: 'oauth_' });
 
 const httpRequestsTotal = new client.Counter({
@@ -24,8 +20,6 @@ const httpRequestDuration = new client.Histogram({
     labelNames: ['method', 'path', 'job'],
     buckets: [0.05, 0.1, 0.3, 0.5, 1, 2, 5]
 });
-
-//
 
 const oauth = new OAuth2Server({
     model: model,
@@ -77,6 +71,15 @@ app.post('/oauth/token', async (req, res) => {
     }
 });
 
+app.post('/oauth/revoke', async (req, res) => {
+    const token = req.body.token;
+    if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+    }
+    await model.revokeToken({ accessToken: token });
+    res.json({ message: "Token successfully revoked" });
+});
+
 app.post('/oauth/introspect', async (req, res) => {
     const tokenFromBody = req.body && req.body.token;
     const fakeReq = tokenFromBody
@@ -90,6 +93,7 @@ app.post('/oauth/introspect', async (req, res) => {
         const tokenInfo = await oauth.authenticate(request, response);
         res.json({
             active: true,
+            user_id: tokenInfo.user ? tokenInfo.user.id : undefined,
             client_id: tokenInfo.client ? tokenInfo.client.id : undefined,
             scope: tokenInfo.scope,
             exp: tokenInfo.accessTokenExpiresAt
@@ -100,7 +104,6 @@ app.post('/oauth/introspect', async (req, res) => {
         res.status(200).json({ active: false, message: err.message });
     }
 });
-
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`OAuth Server running on port ${PORT}`);
