@@ -5,7 +5,6 @@
 
 # 1. PHP / CODEIGNITER 4 (php-fleet, php-passenger, php-stop)
 **/vendor/
-**/system/
 
 # Writable folders (Abaikan isinya, pertahankan struktur foldernya)
 **/writable/cache/*

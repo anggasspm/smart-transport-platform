@@ -93,13 +93,24 @@ class StopController extends BaseController
                 ->where('stop_id', $stopId)
                 ->orderBy('recorded_at', 'DESC')
                 ->limit(1)->get()->getRowArray();
+                
+        $prevLoad = $last['current_load'] ?? 0;
+        
+        if ($boarded == 0 && $alighted == 0 && $last) {
+            $boarded  = $last['boarded'] ?? 0;
+            $alighted = $last['alighted'] ?? 0;
+
+            $newLoad = $prevLoad;
+        } else {
+            $newLoad = max(0, $prevLoad + $alighted - $boarded);
+        }
 
         $db->table('stop_passenger_counts')->insert([
             'stop_id' => $stopId,
             'bus_id' => $busId,
             'boarded' => $boarded,
             'alighted' => $alighted,
-            'current_load' => $last['current_load'] ?? 0,
+            'current_load' => $newLoad,
             'recorded_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -145,10 +156,17 @@ class StopController extends BaseController
         if ($last) {
             $db->table('stop_passenger_counts')
                ->where('id', $last['id'])
-               ->update(['current_load' => $currentLoad, 'recorded_at' => date('Y-m-d H:i:s')]);
+               ->update([
+                    'current_load' => $currentLoad, 
+                    'boarded' => $last['boarded'] ?? 0,
+                    'alighted' => $last['alighted'] ?? 0,
+                    'recorded_at' => date('Y-m-d H:i:s')]);
         } else {
             $db->table('stop_passenger_counts')->insert([
                 'stop_id' => $stopId,
+                'bus_id' => $last['bus_id'],
+                'boarded' => $last['boarded'] ?? 0,
+                'alighted' => $last['alighted'] ?? 0,
                 'current_load' => $currentLoad,
                 'recorded_at' => date('Y-m-d H:i:s'),
             ]);

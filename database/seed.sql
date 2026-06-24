@@ -5186,3 +5186,34 @@ ON DUPLICATE KEY UPDATE
     capacity     = VALUES(capacity),
     status       = VALUES(status),
     driver_name  = VALUES(driver_name);
+
+    DROP PROCEDURE IF EXISTS seed_fleet_gps_logs;
+    DELIMITER $$
+    CREATE PROCEDURE seed_fleet_gps_logs()
+    BEGIN
+        DECLARE i INT DEFAULT 1;
+        DECLARE b INT;
+        DECLARE r INT;
+        WHILE i <= 200 DO
+            SET b = MOD(i - 1, 30) + 1;          docker compose ps -a
+
+            SET r = FLOOR((b - 1) / 3) + 1;       
+            INSERT INTO fleet_gps_logs
+                (bus_id, route_id, lat, lng, speed_kmh, heading, passenger_count, engine_temp, recorded_at)
+            VALUES (
+                b,
+                r,
+                -6.1700 + (RAND() - 0.5) * 0.3,
+                106.8200 + (RAND() - 0.5) * 0.3,
+                ROUND(5 + RAND() * 55, 2),
+                ROUND(RAND() * 359, 2),
+                FLOOR(RAND() * 40),
+                ROUND(70 + RAND() * 30, 2),
+                DATE_SUB(NOW(), INTERVAL FLOOR(RAND() * 1440) MINUTE)
+            );
+            SET i = i + 1;
+        END WHILE;
+    END$$
+    DELIMITER ;
+    CALL seed_fleet_gps_logs();
+    DROP PROCEDURE seed_fleet_gps_logs;

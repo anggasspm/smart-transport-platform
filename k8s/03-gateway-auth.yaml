@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: oauth-server
-          image: smarttransport/oauth-server:latest   # build & push dulu, lihat catatan di bawah
+          image: smarttransport/oauth-server:latest   
           ports: [{ containerPort: 3002 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
@@ -41,7 +41,7 @@ spec:
   replicas: 2
   strategy:
     type: RollingUpdate
-    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   # rolling update tanpa downtime (skenario S5)
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   
   selector:
     matchLabels: { app: api-gateway }
   template:

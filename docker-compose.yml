@@ -44,7 +44,7 @@ services:
     ports:
       - "5673:5672"
       - "15673:15672"   
-      - "15692:15692" 
+      - "15693:15692" 
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:
@@ -61,7 +61,7 @@ services:
     container_name: smarttransport-mosquitto
     restart: unless-stopped
     ports:
-      - "1883:1883"
+      - "1838:1883"
     command: >
       sh -c "
         mosquitto_passwd -c -b /mosquitto/config/passwd iot_user iotpassword &&
@@ -96,7 +96,7 @@ services:
       - "9000:3000"  
     environment:
       PORT: 3000
-      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
+      JWT_SECRET: ${JWT_SECRET:-d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
       OAUTH_SERVER_URL: http://oauth-server:3002
       PASSENGER_SERVICE_URL: http://php-passenger:8000
       FLEET_SERVICE_URL: http://php-fleet:8001
@@ -127,7 +127,7 @@ services:
       - "3002:3002" 
     environment:
       PORT: 3002
-      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
+      JWT_SECRET: ${JWT_SECRET:-d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       DB_HOST: mysql
       DB_PORT: 3306
@@ -164,7 +164,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
-      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
+      JWT_SECRET: ${JWT_SECRET:-d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy
@@ -198,7 +198,7 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
       RABBITMQ_EXCHANGE: city.events
-      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
+      JWT_SECRET: ${JWT_SECRET:-d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy
@@ -220,7 +220,7 @@ services:
     container_name: smarttransport-stop
     restart: unless-stopped
     ports:
-      - "8002:8002"
+      - "8020:8002"
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
@@ -231,7 +231,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
-      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
+      JWT_SECRET: ${JWT_SECRET:-d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy

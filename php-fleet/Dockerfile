@@ -23,7 +23,7 @@ RUN docker-php-ext-configure intl \
         mysqli \
         sockets
 
-RUN pecl install apcu && docker-php-ext-enable apcu
+RUN pecl channel-update pecl.php.net && pecl install apcu && docker-php-ext-enable apcu
 RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
 # ---------------------------------------------------------------------------
 # 3. Composer

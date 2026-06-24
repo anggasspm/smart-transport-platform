@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python train_models.py
+COPY download_models.sh .
+RUN chmod +x download_models.sh && ./download_models.sh
 
 EXPOSE 5000
 
