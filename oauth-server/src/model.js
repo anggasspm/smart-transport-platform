@@ -1,3 +1,5 @@
+const tokenStore = new Map();
+
 module.exports = {
     getClient: async (clientId, clientSecret) => {
         return { 
@@ -9,7 +11,7 @@ module.exports = {
         };
     },
     getUser: async (username, password) => {
-        return { id: 1 };
+        return { id: 1 }; 
     },
     getUserFromClient: async (client) => {
         return { id: client.id };
@@ -35,8 +37,9 @@ module.exports = {
         return saved;
     },
     revokeToken: async (token) => {
-        const existed = tokenStore.has(token.accessToken);
-        tokenStore.delete(token.accessToken);
+        const tokenKey = token.accessToken || token; 
+        const existed = tokenStore.has(tokenKey);
+        tokenStore.delete(tokenKey);
         return existed;
     }
 };
