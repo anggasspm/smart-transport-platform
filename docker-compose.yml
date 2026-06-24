@@ -22,8 +22,8 @@ services:
       MYSQL_DATABASE: smarttransport
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./Database/sqema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./Database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./database/sqema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     networks:
       - smarttransport-net
     healthcheck:
@@ -96,7 +96,7 @@ services:
       - "9000:3000"  
     environment:
       PORT: 3000
-      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
       OAUTH_SERVER_URL: http://oauth-server:3002
       PASSENGER_SERVICE_URL: http://php-passenger:8000
       FLEET_SERVICE_URL: http://php-fleet:8001
@@ -127,7 +127,7 @@ services:
       - "3002:3002" 
     environment:
       PORT: 3002
-      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       DB_HOST: mysql
       DB_PORT: 3306
@@ -164,7 +164,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
-      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy
@@ -198,7 +198,7 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
       RABBITMQ_EXCHANGE: city.events
-      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy
@@ -231,7 +231,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
-      JWT_SECRET: ${JWT_SECRET:-changeme_jwt_secret}
+      JWT_SECRET: ${JWT_SECRET:d04d6c256d79461e6cb4307ba0c91cfc76ec498e04051dcceffadfc630db4ffc}
     depends_on:
       mysql:
         condition: service_healthy
