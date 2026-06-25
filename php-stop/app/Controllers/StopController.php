@@ -86,33 +86,50 @@ class StopController extends BaseController
         $body = $this->request->getJSON(true);
 
         $busId = $body['bus_id'] ?? null;
-        $boarded = $body['boarded'] ?? 0;
-        $alighted = $body['alighted'] ?? 0;
+        $boarded = (int) ($body['boarded']  ?? 0);
+        $alighted = (int) ($body['alighted'] ?? 0);
 
-        $last = $db->table('stop_passenger_counts')
-                ->where('stop_id', $stopId)
-                ->orderBy('recorded_at', 'DESC')
-                ->limit(1)->get()->getRowArray();
-                
-        $prevLoad = $last['current_load'] ?? 0;
-        
-        if ($boarded == 0 && $alighted == 0 && $last) {
-            $boarded  = $last['boarded'] ?? 0;
-            $alighted = $last['alighted'] ?? 0;
+        $db->transStart();
 
-            $newLoad = $prevLoad;
+        $last = $db->query(
+            'SELECT * FROM stop_passenger_counts
+            WHERE stop_id = ?
+            ORDER BY recorded_at DESC
+            LIMIT 1
+            FOR UPDATE',
+            [$stopId]
+        )->getRowArray();
+
+        $lastLoad = (int) ($last['current_load'] ?? 0);
+
+        if ($boarded === 0 && $alighted === 0) {
+            $newLoad = $lastLoad;
         } else {
-            $newLoad = max(0, $prevLoad + $alighted - $boarded);
+            $newLoad = max(0, $lastLoad + $alighted - $boarded);
         }
 
-        $db->table('stop_passenger_counts')->insert([
-            'stop_id' => $stopId,
-            'bus_id' => $busId,
-            'boarded' => $boarded,
-            'alighted' => $alighted,
-            'current_load' => $newLoad,
-            'recorded_at' => date('Y-m-d H:i:s'),
-        ]);
+        if ($last) {
+            $db->table('stop_passenger_counts')
+            ->where('id', $last['id'])
+            ->update([
+                'bus_id' => $busId ?? $last['bus_id'],
+                'boarded' => $boarded,
+                'alighted' => $alighted,
+                'current_load' => $newLoad,
+                'recorded_at'  => date('Y-m-d H:i:s'),
+            ]);
+        } else {
+            $db->table('stop_passenger_counts')->insert([
+                'stop_id' => $stopId,
+                'bus_id' => $busId,
+                'boarded' => $boarded,
+                'alighted' => $alighted,
+                'current_load' => $newLoad,
+                'recorded_at' => date('Y-m-d H:i:s'),
+            ]);
+        }
+
+        $db->transComplete();
 
         return $this->respond(200, null, 'Jumlah yang naik dan turun bus di halte terperbarui');
     }
@@ -146,31 +163,30 @@ class StopController extends BaseController
         $body = $this->request->getJSON(true);
 
         $stopId = $body['stop_id'] ?? 0;
-        $currentLoad = $body['current_load'] ?? 0;
+        $newLoad = (int) ($body['current_load'] ?? 0);
+        $busId = $body['bus_id'] ?? null;
 
-        $last = $db->table('stop_passenger_counts')
-                   ->where('stop_id', $stopId)
-                   ->orderBy('recorded_at', 'DESC')
-                   ->limit(1)->get()->getRowArray();
+        $db->transStart();
 
-        if ($last) {
-            $db->table('stop_passenger_counts')
-               ->where('id', $last['id'])
-               ->update([
-                    'current_load' => $currentLoad, 
-                    'boarded' => $last['boarded'] ?? 0,
-                    'alighted' => $last['alighted'] ?? 0,
-                    'recorded_at' => date('Y-m-d H:i:s')]);
-        } else {
-            $db->table('stop_passenger_counts')->insert([
-                'stop_id' => $stopId,
-                'bus_id' => $last['bus_id'],
-                'boarded' => $last['boarded'] ?? 0,
-                'alighted' => $last['alighted'] ?? 0,
-                'current_load' => $currentLoad,
-                'recorded_at' => date('Y-m-d H:i:s'),
-            ]);
-        }
+        $last = $db->query(
+            'SELECT * FROM stop_passenger_counts
+            WHERE stop_id = ?
+            ORDER BY recorded_at DESC
+            LIMIT 1
+            FOR UPDATE',
+            [$stopId]
+        )->getRowArray();
+
+        $db->table('stop_passenger_counts')->insert([
+            'stop_id' => $stopId,
+            'bus_id' => $busId,
+            'boarded' => $last['boarded']  ?? 0,
+            'alighted' => $last['alighted'] ?? 0,
+            'current_load' => max(0, $newLoad),
+            'recorded_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        $db->transComplete();
 
         return $this->respond(200, null, 'Current load updated');
     }

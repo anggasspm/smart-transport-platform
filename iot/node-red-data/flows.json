@@ -16,16 +16,20 @@
     {
         "id": "broker_mosquitto",
         "type": "mqtt-broker",
-        "name": "EMQX Public",
-        "broker": "broker.emqx.io",
+        "name": "Mosquitto Local",
+        "broker": "mosquitto",
         "port": "1883",
-        "clientid": "nodered_bridge_fauzan",
+        "clientid": "nodered_bridge",
         "autoConnect": true,
         "usetls": false,
         "protocolVersion": "4",
         "keepalive": "60",
         "cleansession": true,
         "autoUnsubscribe": true,
+        "credentials": {
+            "user": "iot_user",
+            "password": "iotpassword"
+        },
         "birthTopic": "",
         "birthQos": "0",
         "birthPayload": "",
@@ -802,6 +806,54 @@
         "wires": []
     },
     {
+        "id": "6c0cc695cb6db9c9",
+        "type": "function",
+        "z": "addc359b5a209750",
+        "name": "function 1",
+        "func": "const metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total 1\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${flow.get('msg_count') || 0}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 220,
+        "wires": [
+            [
+                "74a8a6b5bf3ef9e2"
+            ]
+        ]
+    },
+    {
+        "id": "3281e76ca3033ff5",
+        "type": "http in",
+        "z": "addc359b5a209750",
+        "name": "",
+        "url": "/metrics",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 70,
+        "y": 220,
+        "wires": [
+            [
+                "6c0cc695cb6db9c9"
+            ]
+        ]
+    },
+    {
+        "id": "74a8a6b5bf3ef9e2",
+        "type": "http response",
+        "z": "addc359b5a209750",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 370,
+        "y": 220,
+        "wires": []
+    },
+    {
         "id": "iot_token_inject",
         "type": "inject",
         "z": "tab_iot_bridge",
@@ -846,13 +898,8 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Set Auth Header",
-        "func": "const token = flow.get('iot_access_token');\nnode.warn(\"TOKEN IN FLOW: \" + (token ? token.substring(0, 20) + '...' : 'NULL'));\nif (!token) {\n    node.warn('No IoT token yet, sending without valid token (will surface as 401, not silently dropped)');\n}\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + (token || '')\n};\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nif (!token) { node.warn('No IoT token yet'); return null; }\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + token\n};\nreturn msg;",
         "outputs": 1,
-        "timeout": "",
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
         "x": 570,
         "y": 100,
         "wires": [
@@ -949,53 +996,5 @@
         "wires": [
             []
         ]
-    },
-    {
-        "id": "6c0cc695cb6db9c9",
-        "type": "function",
-        "z": "addc359b5a209750",
-        "name": "function 1",
-        "func": "const metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total 1\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${flow.get('msg_count') || 0}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 220,
-        "y": 220,
-        "wires": [
-            [
-                "74a8a6b5bf3ef9e2"
-            ]
-        ]
-    },
-    {
-        "id": "3281e76ca3033ff5",
-        "type": "http in",
-        "z": "addc359b5a209750",
-        "name": "",
-        "url": "/metrics",
-        "method": "get",
-        "upload": false,
-        "swaggerDoc": "",
-        "x": 70,
-        "y": 220,
-        "wires": [
-            [
-                "6c0cc695cb6db9c9"
-            ]
-        ]
-    },
-    {
-        "id": "74a8a6b5bf3ef9e2",
-        "type": "http response",
-        "z": "addc359b5a209750",
-        "name": "",
-        "statusCode": "",
-        "headers": {},
-        "x": 370,
-        "y": 220,
-        "wires": []
     }
 ]
