@@ -1,25 +1,26 @@
-from collections import deque, defaultdict
-import numpy as np
 import json
 import logging
 import pika
+import numpy as np
 
+from shared_state import append_speed, get_last_n_speeds
 from services.model2_service import predict_model2
 from services.model3_service import predict_model3
-from services.rabbitmq_publisher import publish_anomaly_alert  # sesuaikan path
+from services.rabbitmq_publisher import publish_anomaly_alert
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_HOST = "rabbitmq"  
-SPEED_WINDOW_SIZE = 120  # ~1 jam kalo GPS update tiap 30 detik — perlu cek interval asli simulator
+RABBITMQ_HOST = "rabbitmq"
 
-speed_history = defaultdict(lambda: deque(maxlen=SPEED_WINDOW_SIZE))
 
-def compute_rolling_features(bus_id, current_speed):
-    history = speed_history[bus_id]
-    history.append(current_speed)
+def compute_rolling_features_model3(bus_id, current_speed):
+    """
+    Model 3 pakai histori SEBELUM speed baru ini di-append — supaya rolling_mean_1h
+    konsisten secara semantik dengan "rata-rata 1 jam terakhir s.d. sebelum observasi ini".
+    """
+    history = get_last_n_speeds(bus_id, 120)
     if len(history) < 2:
-        return None, None  # minimal ada dua data, kalo belum cukup data jadi harus skip prediksi
+        return None, None
     rolling_mean = float(np.mean(history))
     std = float(np.std(history))
     z = (current_speed - rolling_mean) / std if std > 0 else 0.0
@@ -34,10 +35,16 @@ def on_gps_update(ch, method, properties, body):
 
         logger.info(f"[gps.update] bus_id={bus_id} speed_kmh={speed} recorded_at={payload.get('recorded_at')}")
 
-        rolling_mean, z_score = compute_rolling_features(bus_id, speed)
+        # 1) Hitung dulu rolling features Model 3 pakai histori SEBELUM speed baru di-append.
+        rolling_mean, z_score = compute_rolling_features_model3(bus_id, speed)
+
+        # 2) BARU append speed baru ke shared state. Setelah titik ini, speed baru ini
+        #    akan terbaca sebagai observasi paling akhir oleh model1_service.py
+        #    (dipakai sebagai speed_lag_1 saat /predict/delay dipanggil belakangan).
+        append_speed(bus_id, speed)
 
         if rolling_mean is None:
-            logger.info(f"[gps.update] bus_id={bus_id} — belum cukup histori, skip anomaly check")
+            logger.info(f"[gps.update] bus_id={bus_id} - belum cukup histori, skip anomaly check")
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
@@ -53,12 +60,10 @@ def on_gps_update(ch, method, properties, body):
         data = result.get("data", {})
         logger.info(f"[gps.update] bus_id={bus_id} anomaly_check -> {data}")
 
-        # Gating - cuma publish kalau severity Medium/High 
         if data.get("severity") in ("Medium", "High"):
             publish_anomaly_alert(bus_id=bus_id, route_id=payload.get("route_id"), detail=data)
             logger.warning(f"[anomaly.alert] published for bus_id={bus_id} severity={data.get('severity')}")
 
-        # Model 1 tetap ga dipanggil — distance_to_stop masih ga tersedia di payload
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
