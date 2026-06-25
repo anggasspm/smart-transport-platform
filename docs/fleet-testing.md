@@ -144,7 +144,7 @@ curl -s http://localhost:8001/api/routes/1/buses | jq
 
 ### POST /api/gps — Kirim GPS data (format simulator)
 
-**Payload minimal (Unix timestamp):**
+#### Test A — Payload dengan `stop_id` eksplisit
 
 ```bash
 curl -s -X POST http://localhost:8001/api/gps \
@@ -152,20 +152,25 @@ curl -s -X POST http://localhost:8001/api/gps \
   -d '{
     "bus_id": 1,
     "route_id": 1,
+    "stop_id": 3,
     "lat": -6.3112,
     "lng": 106.8135,
     "speed_kmh": 35,
     "heading": 120,
+    "passenger_count": 20,
     "timestamp": 1718340000
   }' | jq
 ```
 
-**Payload lengkap (dengan optional fields):**
+**Contoh response sukses (Test A):**
 
-```bash
-curl -s -X POST http://localhost:8001/api/gps \
-  -H "Content-Type: application/json" \
-  -d '{
+```json
+{
+  "status": "success",
+  "code": 201,
+  "message": "GPS log saved",
+  "data": {
+    "id": 101,
     "bus_id": 1,
     "route_id": 1,
     "lat": -6.3112,
@@ -173,12 +178,57 @@ curl -s -X POST http://localhost:8001/api/gps \
     "speed_kmh": 35,
     "heading": 120,
     "passenger_count": 20,
-    "engine_temp": 87.5,
+    "engine_temp": null,
+    "recorded_at": "2024-06-14 01:20:00",
+    "stop_id": 3,
+    "closest_stop_id": 3,
+    "distance_to_stop": 120.5
+  }
+}
+```
+
+#### Test B — Payload tanpa `stop_id` (fallback ke halte terdekat)
+
+```bash
+curl -s -X POST http://localhost:8001/api/gps \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bus_id": 1,
+    "route_id": 1,
+    "lat": -6.3112,
+    "lng": 106.8135,
+    "speed_kmh": 35,
+    "heading": 120,
     "timestamp": 1718340000
   }' | jq
 ```
 
-**Payload dengan ISO timestamp:**
+**Contoh response sukses (Test B — backward compatible):**
+
+```json
+{
+  "status": "success",
+  "code": 201,
+  "message": "GPS log saved",
+  "data": {
+    "id": 102,
+    "bus_id": 1,
+    "route_id": 1,
+    "lat": -6.3112,
+    "lng": 106.8135,
+    "speed_kmh": 35,
+    "heading": 120,
+    "passenger_count": 0,
+    "engine_temp": null,
+    "recorded_at": "2024-06-14 01:20:00",
+    "stop_id": 2,
+    "closest_stop_id": 2,
+    "distance_to_stop": 348.72
+  }
+}
+```
+
+#### Test dengan `next_stop_id` (alias stop_id)
 
 ```bash
 curl -s -X POST http://localhost:8001/api/gps \
@@ -186,6 +236,7 @@ curl -s -X POST http://localhost:8001/api/gps \
   -d '{
     "bus_id": 2,
     "route_id": 1,
+    "next_stop_id": 5,
     "lat": -6.2088,
     "lng": 106.8456,
     "speed_kmh": 42,
@@ -197,10 +248,12 @@ curl -s -X POST http://localhost:8001/api/gps \
 **Expected:** `201 Created` — Data tersimpan di `fleet_gps_logs` dan event `gps.update` dikirim ke RabbitMQ.
 
 **Catatan:**
+- `stop_id` dan `next_stop_id` sama-sama opsional (backward compatible).
+- Jika keduanya tidak dikirim, server otomatis mencari halte terdekat berdasarkan koordinat.
+- `stop_id` diprioritaskan jika keduanya dikirim bersamaan.
+- Jika `stop_id` tidak ditemukan atau bukan milik `route_id`, GPS tetap tersimpan, `distance_to_stop=null`, dan `warnings` dikembalikan.
 - `timestamp` bisa Unix integer atau ISO string. Jika kosong, server menggunakan waktu sekarang.
 - `engine_temp` optional/null.
-- `passenger_count` optional, default 0.
-- `bus_id` dan `route_id` wajib ada di database.
 
 ### GET /api/gps/buses/{bus_id} — History GPS per bus
 
@@ -334,8 +387,31 @@ curl -s -X POST http://localhost:8001/api/buses \
 
 | Routing Key | Trigger | Payload |
 |---|---|---|
-| `gps.update` | POST /api/gps | `{ event, bus_id, route_id, lat, lng, speed_kmh, heading, passenger_count, engine_temp, recorded_at }` |
+| `gps.update` | POST /api/gps | `{ event, bus_id, route_id, stop_id, closest_stop_id, lat, lng, speed_kmh, heading, passenger_count, engine_temp, distance_to_stop, recorded_at }` |
 | `fleet.incident.created` | POST /api/incidents | `{ event, incident_id, bus_id, type, severity, reported_at }` |
 | `bus.status.updated` | PATCH bus status / incident create / incident resolve | `{ event, bus_id, old_status, new_status, timestamp }` |
 
 Exchange: `city.events` (topic, durable)
+
+### Contoh payload `gps.update` (baru)
+
+```json
+{
+  "event": "gps.update",
+  "bus_id": 1,
+  "route_id": 1,
+  "stop_id": 3,
+  "closest_stop_id": 3,
+  "lat": -6.3112,
+  "lng": 106.8135,
+  "speed_kmh": 35,
+  "heading": 120,
+  "passenger_count": 20,
+  "engine_temp": null,
+  "distance_to_stop": 120.5,
+  "recorded_at": "2024-06-14 01:20:00"
+}
+```
+
+> `stop_id` dan `closest_stop_id` akan `null` jika tidak ada data halte untuk `route_id` tersebut.
+> `distance_to_stop` akan `null` jika stop lookup gagal. Backward compatible — consumer lama tetap berfungsi.
