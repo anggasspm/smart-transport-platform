@@ -12,15 +12,15 @@ router.post('/api/passengers', proxy('http://php-passenger:8000'));
 // Passenger Service
 router.use('/api/passengers', authMiddleware, proxy('http://php-passenger:8000'));
 router.use('/api/tickets', authMiddleware, proxy('http://php-passenger:8000'));
-router.use('/api/notifications', authMiddleware, proxy('http://php-notification:8000'));
+router.use('/api/notifications', authMiddleware, proxy('http://php-passenger:8000'));
 
 // Fleet Service
-router.use('/api/buses', authMiddleware, proxy('http://php-fleet:8001'));
-router.use('/api/routes', authMiddleware, proxy('http://php-fleet:8001'));
-router.use('/api/gps', authMiddleware, proxy('http://php-fleet:8001'));
+router.use('/api/buses', proxy('http://php-fleet:8001'));
+router.use('/api/routes', proxy('http://php-fleet:8001'));
+router.use('/api/gps', proxy('http://php-fleet:8001'));
 
 // Stop Service
-router.use('/api/stops', authMiddleware, proxy('http://php-stop:8002'));
+router.use('/api/stops', proxy('http://php-stop:8002'));
 
 // IoT
 router.use('/iot/gps', authMiddleware, proxy('http://php-fleet:8001', { '^/iot/gps': '/api/gps' }));
