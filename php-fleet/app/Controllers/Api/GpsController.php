@@ -15,8 +15,8 @@ class GpsController extends BaseController
 {
     use ApiResponseTrait;
 
-    /** Earth radius in metres, used by the Haversine formula. */
-    private const EARTH_RADIUS_M = 6_371_000;
+    /** Earth radius in KM, used by the Haversine formula. */
+    private const EARTH_RADIUS_KM = 6371;
 
     private GpsLogModel       $gpsModel;
     private BusModel          $busModel;
@@ -90,7 +90,7 @@ class GpsController extends BaseController
             if ($stopResult !== null) {
                 $resolvedStopId = $stopResult['id'];
                 $closestStopId  = $stopResult['id'];
-                $distanceToStop = $this->calculateDistanceMeters(
+                $distanceToStop = $this->calculateDistanceKm(
                     $busLat,
                     $busLng,
                     (float) $stopResult['lat'],
@@ -191,14 +191,15 @@ class GpsController extends BaseController
      * Calculate the great-circle distance between two lat/lng points.
      *
      * Uses the Haversine formula.
-     * Returns the distance in **meters** (float, rounded to 2 decimal places).
+     * Returns the distance in **KM** (float, rounded to 2 decimal places).
      *
      * @param float $lat1 Latitude  of point 1 (bus position)
      * @param float $lng1 Longitude of point 1
      * @param float $lat2 Latitude  of point 2 (stop position)
      * @param float $lng2 Longitude of point 2
      */
-    private function calculateDistanceMeters(
+
+    private function calculateDistanceKm(
         float $lat1,
         float $lng1,
         float $lat2,
@@ -212,7 +213,7 @@ class GpsController extends BaseController
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-        return round(self::EARTH_RADIUS_M * $c, 2);
+        return round(self::EARTH_RADIUS_KM * $c, 2);
     }
 
     // =========================================================================
@@ -282,7 +283,7 @@ class GpsController extends BaseController
         $minDist    = PHP_FLOAT_MAX;
 
         foreach ($stops as $stop) {
-            $dist = $this->calculateDistanceMeters(
+            $dist = $this->calculateDistanceKm(
                 $busLat,
                 $busLng,
                 (float) $stop['lat'],
