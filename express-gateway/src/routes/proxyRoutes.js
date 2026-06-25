@@ -6,6 +6,9 @@ const authMiddleware = require('../middleware/authMiddleware');
 const proxy = (target, pathRewrite = {}) =>
     createProxyMiddleware({ target, changeOrigin: true, pathRewrite });
 
+// Register (Publik)
+router.post('/api/passengers', proxy('http://php-passenger:8000'));
+
 // Passenger Service
 router.use('/api/passengers', authMiddleware, proxy('http://php-passenger:8000'));
 router.use('/api/tickets', authMiddleware, proxy('http://php-passenger:8000'));

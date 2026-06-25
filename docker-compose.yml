@@ -61,7 +61,7 @@ services:
     container_name: smarttransport-mosquitto
     restart: unless-stopped
     ports:
-      - "1838:1883"
+      - "1883:1883"
     command: >
       sh -c "
         mosquitto_passwd -c -b /mosquitto/config/passwd iot_user iotpassword &&
@@ -306,14 +306,18 @@ services:
       - '--storage.tsdb.retention.time=15d'
   
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: smarttransport-cadvisor
     restart: unless-stopped
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=true'
     ports:
       - "8080:8080"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
