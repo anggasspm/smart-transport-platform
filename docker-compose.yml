@@ -309,11 +309,14 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: smarttransport-cadvisor
     restart: unless-stopped
+    command:
+      - '--docker_only=true'
+      - '--store_container_labels=true'
     ports:
       - "8080:8080"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
