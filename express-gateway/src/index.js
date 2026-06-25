@@ -4,6 +4,7 @@ const PORT = 3000;
 const proxyRoutes = require('./routes/proxyRoutes');
 const apiLimiter = require('./middleware/rateLimiter');
 const client = require('prom-client');
+const axios = require('axios');
 
 const collectDefaultMetrics = client.collectDefaultMetrics;
 
@@ -54,9 +55,11 @@ app.get('/health', async (req, res) => {
 
     await Promise.all(checkPromises);
 
-    res.status(200).json({
-        status: "success",
-        code: 200,
+    const allHealthy = Object.values(dependencies).every(s => s === "UP");
+
+    res.status(allHealthy ? 200 : 207).json({ 
+        status: allHealthy ? "success" : "degraded",
+        code: allHealthy ? 200 : 207,
         data: dependencies,
         message: "Gateway and dependencies checked",
         timestamp: new Date().toISOString(),
