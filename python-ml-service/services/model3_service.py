@@ -1,4 +1,5 @@
 import logging
+import pandas as pd
 from .loader import MODELS
 from utils.response import error_response, success_response
 
@@ -26,12 +27,12 @@ def predict_model3(input_data: dict):
                 status_code=400,
                 message=f"Validation Error: Missing required feature {str(e)} for anomaly detection."
             )
-            
-        scaled_input = scaler.transform([features_vector])
+
+        input_df = pd.DataFrame([features_vector], columns=feature_order)
         
-        anomaly_score = float(-model.score_samples(scaled_input)[0])
+        anomaly_score = float(-model.score_samples(input_df)[0])
         
-        raw_label = int(model.predict(scaled_input)[0])
+        raw_label = int(model.predict(input_df)[0])
         is_anomaly = True if raw_label == -1 else False
         
         severity_thresholds = config["severity_thresholds"]

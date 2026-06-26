@@ -54,9 +54,8 @@ def load_model_2():
 
 def load_model_3():
     try:
-        MODELS["model3"]["scaler"] = load_joblib("model3_scaler.pkl")
-        MODELS["model3"]["anomaly_detector"] = load_joblib("model3_anomaly_detector.pkl")
-        MODELS["model3"]["config"] = load_json("model3_config.json")
+        MODELS["model3"]["anomaly_detector"] = load_joblib("model3_anomaly_detector_v2.pkl")
+        MODELS["model3"]["config"] = load_json("model3_config_v2.json")
         MODELS["model3"]["loaded"] = True
         logger.info("Model 3 successfully loaded via joblib.")
     except Exception as e:

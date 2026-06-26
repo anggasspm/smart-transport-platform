@@ -2,11 +2,11 @@ import json
 import logging
 import pika
 import numpy as np
-
-from shared_state import append_speed, get_last_n_speeds
+from consumers.rabbitmq_utils import connect_with_retry
+from consumers.shared_state import append_speed, get_last_n_speeds
 from services.model2_service import predict_model2
 from services.model3_service import predict_model3
-from services.rabbitmq_publisher import publish_anomaly_alert
+from consumers.rabbitmq_publisher import publish_anomaly_alert
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,9 @@ def on_gps_update(ch, method, properties, body):
             return
 
         anomaly_input = {
-            "speed": speed,
+            "speed_kmh": speed,
             "passenger_count": payload.get("passenger_count"),
-            "engine_temp": payload.get("engine_temp"),
+            "engine_temp_c": payload.get("engine_temp"),
             "rolling_mean_1h": rolling_mean,
             "z_score": z_score,
         }
@@ -91,22 +91,6 @@ def on_passenger_boarded(ch, method, properties, body):
     except Exception as e:
         logger.error(f"Failed processing passenger.boarded: {e}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
-
-
-import time
-
-def connect_with_retry(host, max_retries=10, delay_seconds=5):
-    for attempt in range(1, max_retries + 1):
-        try:
-            connection = pika.BlockingConnection(pika.ConnectionParameters(host=host))
-            logger.info(f"Connected to RabbitMQ on attempt {attempt}")
-            return connection
-        except pika.exceptions.AMQPConnectionError as e:
-            logger.warning(f"RabbitMQ not ready (attempt {attempt}/{max_retries}): {e}")
-            if attempt == max_retries:
-                logger.error("Max retries reached. Could not connect to RabbitMQ.")
-                raise
-            time.sleep(delay_seconds)
 
 def start_consumer():
     connection = connect_with_retry(RABBITMQ_HOST)
