@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 MODELS = {
     "model1": {"regressor": None, "encoder": None, "config": None, "loaded": False, "error": None},
     "model2": {"classifier": None, "target_mapping": None, "feature_order": None, "loaded": False, "error": None},
-    "model3": {"scaler": None, "anomaly_detector": None, "config": None, "loaded": False, "error": None}
+    "model3": {"anomaly_detector": None, "config": None, "loaded": False, "error": None}
 }
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +28,7 @@ def load_json(file_name: str):
 
 def load_model_1():
     try:
-        MODELS["model1"]["regressor"] = load_joblib("model1_delay_regressor-v2.pkl")
+        MODELS["model1"]["regressor"] = load_joblib("model1_delay_regressor_v2.pkl")
         MODELS["model1"]["encoder"] = load_joblib("model1_corridor_encoder_v2.pkl")
         MODELS["model1"]["config"] = load_json("model1_config_v2.json")
         MODELS["model1"]["loaded"] = True

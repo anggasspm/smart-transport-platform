@@ -36,7 +36,8 @@ def publish_anomaly_alert(bus_id, route_id, detail: dict):
         "is_anomaly": detail.get("is_anomaly"),
         "anomaly_score": detail.get("anomaly_score"),
         "severity": detail.get("severity"),
-        "timestamp": detail.get("timestamp"),  
+        "message": f"Anomali {detail.get('severity')} terdeteksi. Score: {detail.get('anomaly_score', 0):.3f}",
+        "timestamp": detail.get("timestamp"),
     }
     success = _publish("anomaly.alert", payload)
     if not success:

@@ -101,8 +101,14 @@ class BusController extends BaseController
             return $this->validationError($this->validator->getErrors());
         }
 
-        $input = $this->request->getRawInput();
-        // Support both JSON body and form-encoded PATCH
+        // Support both JSON body and form-encoded PATCH.
+        // getRawInput() only parses application/x-www-form-urlencoded bodies — it returns
+        // an empty array for JSON, which previously made every JSON PATCH/PUT request fail
+        // with "No updatable fields provided" regardless of what was sent.
+        $input = $this->request->getJSON(true);
+        if (empty($input)) {
+            $input = $this->request->getRawInput();
+        }
         if (empty($input)) {
             $input = (array) $this->request->getVar();
         }

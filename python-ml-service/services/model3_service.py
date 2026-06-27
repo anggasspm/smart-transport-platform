@@ -13,7 +13,6 @@ def predict_model3(input_data: dict):
             message="Model 3 is currently unavailable due to initialization failure."
         )
     
-    scaler = MODELS["model3"]["scaler"]
     model = MODELS["model3"]["anomaly_detector"]
     config = MODELS["model3"]["config"]
     
