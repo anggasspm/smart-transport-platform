@@ -103,6 +103,9 @@ services:
       STOP_SERVICE_URL: http://php-stop:8002
       PYTHON_ML_URL: http://python-ml:5000
       NODE_ENV: ${NODE_ENV:-production}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
     depends_on:
       rabbitmq:
         condition: service_healthy
