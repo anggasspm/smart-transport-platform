@@ -18,8 +18,8 @@ $conn    = new AMQPStreamConnection(
 );
 $channel = $conn->channel();
 $channel->exchange_declare('city.events', 'topic', false, true, false);
-$channel->queue_declare('ticket.purchased', false, true, false, false);
-$channel->queue_bind('ticket.purchased', 'city.events', 'ticket.purchased');
+$channel->queue_declare('ticket.checkout', false, true, false, false);
+$channel->queue_bind('ticket.checkout', 'city.events', 'ticket.checkout');
 
 $dbHost = $_ENV['database.default.hostname'] ?? 'mysql';
 $dbName = $_ENV['database.default.database'] ?? 'smarttransport';
@@ -32,33 +32,23 @@ $pdo = new PDO(
     $dbPass
 );
 
-echo "[TicketConsumer] Listening on ticket.purchased...\n";
+echo "[CheckoutConsumer] Listening on ticket.checkout...\n";
 
 $channel->basic_consume(
-    'ticket.purchased', '', false, false, false, false,
+    'ticket.checkout', '', false, false, false, false,
     function($msg) use ($pdo) {
         $event = json_decode($msg->body, true);
-        echo "[TicketConsumer] Event diterima: " . json_encode($event) . "\n";
+        echo "[CheckoutConsumer] Event diterima: " . json_encode($event) . "\n";
 
         $passengerId = $event['passenger_id'] ?? null;
         $ticketId    = $event['ticket_id']    ?? null;
-        $routeId     = $event['route_id']     ?? null;
+        $exitStopId  = $event['exit_stop_id'] ?? null;
         $cardNumber  = $event['card_number']  ?? '';
-        $eventType   = $event['event_type']   ?? 'purchase';
 
         if (!$passengerId) {
-            echo "[TicketConsumer] passenger_id tidak ada, skip.\n";
+            echo "[CheckoutConsumer] passenger_id tidak ada, skip.\n";
             $msg->ack();
             return;
-        }
-
-        // Bedakan notifikasi berdasarkan event_type
-        if ($eventType === 'tap_in') {
-            $title = 'Tap In Berhasil';
-            $body  = 'Kamu berhasil tap masuk dengan kartu ' . $cardNumber . '. Selamat bepergian!';
-        } else {
-            $title = 'Tiket Berhasil Dibeli';
-            $body  = 'Tiket #' . $ticketId . ' untuk rute ' . $routeId . ' berhasil dibeli. Selamat bepergian!';
         }
 
         $insert = $pdo->prepare("
@@ -69,11 +59,11 @@ $channel->basic_consume(
 
         $insert->execute([
             ':pid'   => $passengerId,
-            ':title' => $title,
-            ':body'  => $body
+            ':title' => 'Perjalanan Selesai',
+            ':body'  => 'Kamu telah keluar di halte #' . $exitStopId . '. Terima kasih telah menggunakan layanan kami!'
         ]);
 
-        echo "[TicketConsumer] Notif dikirim ke passenger_id: {$passengerId}\n";
+        echo "[CheckoutConsumer] Notif dikirim ke passenger_id: {$passengerId}\n";
         $msg->ack();
     }
 );
