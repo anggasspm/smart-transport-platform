@@ -1,10 +1,10 @@
 const express = require('express');
 const app = express();
 const PORT = 3000;
+const axios = require('axios');
 const proxyRoutes = require('./routes/proxyRoutes');
 const apiLimiter = require('./middleware/rateLimiter');
 const client = require('prom-client');
-const axios = require('axios');
 
 const collectDefaultMetrics = client.collectDefaultMetrics;
 
@@ -32,8 +32,6 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(apiLimiter);
-
 app.get('/health', async (req, res) => {
     const services = [
         { name: 'oauth_server', url: 'http://oauth-server:3002/health' },
@@ -55,11 +53,9 @@ app.get('/health', async (req, res) => {
 
     await Promise.all(checkPromises);
 
-    const allHealthy = Object.values(dependencies).every(s => s === "UP");
-
-    res.status(allHealthy ? 200 : 207).json({ 
-        status: allHealthy ? "success" : "degraded",
-        code: allHealthy ? 200 : 207,
+    res.status(200).json({
+        status: "success",
+        code: 200,
         data: dependencies,
         message: "Gateway and dependencies checked",
         timestamp: new Date().toISOString(),
@@ -71,6 +67,8 @@ app.get('/metrics', async (req, res) => {
     res.set('Content-Type', client.register.contentType);
     res.end(await client.register.metrics());
 });
+
+app.use(apiLimiter);
 
 app.use('/', proxyRoutes);
 

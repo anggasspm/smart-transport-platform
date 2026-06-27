@@ -14,13 +14,14 @@ spec:
       containers:
         - name: python-ml
           image: smarttransport/python-ml:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 5000 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
             - secretRef: { name: smarttransport-secret }
           resources:
-            requests: { cpu: "200m", memory: "256Mi" }
-            limits: { cpu: "500m", memory: "512Mi" }
+            requests: { cpu: "200m", memory: "384Mi" }
+            limits: { cpu: "500m", memory: "900Mi" }
           readinessProbe:
             httpGet: { path: /health, port: 5000 }
             initialDelaySeconds: 20
@@ -44,7 +45,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: python-ml
-  minReplicas: 2
+  minReplicas: 1
   maxReplicas: 5
   metrics:
     - type: Resource

@@ -271,22 +271,26 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    volumes:
+      - ./python-ml-service/models:/app/models
 
   # IOT LAYER 
   node-red:
-    image: nodered/node-red:3.1
+    build: ./iot/node-red
     container_name: smarttransport-nodered
     restart: unless-stopped
     ports:
-      - "1880:1880" 
+      - "1880:1880"
     volumes:
       - ./iot/node-red-data:/data
     environment:
       - IOT_TOKEN=dummytoken
       - TZ=Asia/Jakarta
+      - RABBITMQ_HOST=rabbitmq
     depends_on:
       - mosquitto
       - api-gateway
+      - rabbitmq
     networks:
       - smarttransport-net
 
@@ -306,12 +310,10 @@ services:
       - '--storage.tsdb.retention.time=15d'
   
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
+    image: gcr.io/cadvisor/cadvisor:v0.46.0
     container_name: smarttransport-cadvisor
     restart: unless-stopped
-    command:
-      - '--docker_only=true'
-      - '--store_container_labels=true'
+    privileged: true
     ports:
       - "8080:8080"
     volumes:
@@ -323,6 +325,33 @@ services:
       - /dev/disk:/dev/disk:ro
     devices:
       - /dev/kmsg:/dev/kmsg
+    networks:
+      - smarttransport-net
+  
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: smarttransport-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+    networks:
+      - smarttransport-net
+  
+  docker-exporter:
+    image: prometheusnet/docker_exporter:latest
+    container_name: smarttransport-docker-exporter
+    restart: unless-stopped
+    ports:
+      - "9417:9417"
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - smarttransport-net
 

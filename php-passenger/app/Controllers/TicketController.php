@@ -129,6 +129,21 @@ class TicketController extends BaseController
             'price' => $price,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
+        $newTicket = $db->table('passenger_tickets')
+               ->where('passenger_id', $passenger['id'])
+               ->where('status', 'active')
+               ->orderBy('created_at', 'DESC')
+               ->limit(1)
+               ->get()->getRowArray();
+
+        RabbitMQPublisher::publish('ticket.purchased', [
+            'ticket_id'    => $newTicket['id'] ?? null,
+            'passenger_id' => $passenger['id'],
+            'route_id'     => $routeId,
+            'card_number'  => $cardNumber,
+            'event_type'   => 'tap_in',
+            'timestamp'    => date('c')
+        ]);
 
         return $this->respond(201, [
             'price' => $price,
@@ -208,8 +223,18 @@ class TicketController extends BaseController
 
         // 4. ubah status tiket itu jadi 'used'
         $db->table('passenger_tickets')
-           ->where('id', $ticket['id'])
-           ->update(['status' => 'used']);
+        ->where('id', $ticket['id'])
+        ->update(['status' => 'used']);
+
+        // 5. Publish event checkout ke RabbitMQ
+        // Pakai $ticket['id'] langsung, bukan query ulang
+        RabbitMQPublisher::publish('ticket.checkout', [
+            'ticket_id'    => $ticket['id'],
+            'passenger_id' => $passenger['id'],
+            'exit_stop_id' => $exitStopId,
+            'card_number'  => $cardNumber,
+            'timestamp'    => date('c')
+        ]);
 
         return $this->respond(200, ['final_dest_stop_id' => $finalDestId], 'Checkout berhasil');
     }
