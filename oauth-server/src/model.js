@@ -64,7 +64,7 @@ module.exports = {
 
     async getUserFromClient(client) {
         return {
-            id: null
+            id: 0
         };
     },
 
@@ -138,9 +138,9 @@ module.exports = {
                 id: token.client_id,
                 clientId: token.client_id
             },
-            user: token.user_id
-                ? { id: token.user_id }
-                : null
+            user: {
+                id: token.user_id ?? 0
+            }
         };
     },
 
