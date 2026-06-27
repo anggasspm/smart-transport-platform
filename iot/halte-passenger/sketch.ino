@@ -15,7 +15,7 @@ struct StopOption {
 #include "config.h"
 
 // config
-#define STOP_ID 2
+#define STOP_ID 1
 #define RFID_SS_MASUK 5
 #define RFID_RST_MASUK 22
 #define RFID_SS_KELUAR 15
@@ -72,6 +72,7 @@ unsigned long lastBusPoll = 0;
 #define BUS_POLL_INTERVAL 5000
 
 char replyTopic[40];
+char busArrivalTopic[40];
 
 String pendingReqId = "";
 
@@ -129,6 +130,7 @@ void setup() {
   connectWifi();
 
   snprintf(replyTopic, sizeof(replyTopic), "city/stop/%d/reply", STOP_ID);
+  snprintf(busArrivalTopic, sizeof(busArrivalTopic), "city/stop/%d/bus-arrival", STOP_ID);
 
   mqttClient.setBufferSize(1024);
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
@@ -141,7 +143,7 @@ void setup() {
 void loop() {
 
   if (millis() - lastPassengerLog >= PASSENGER_LOG_INTERVAL) {
-
+    
     Serial.printf(
       "[STATUS 30s] MASUK=%d KELUAR=%d CURRENT_LOAD=%d\n",
       totalMasuk,
@@ -149,13 +151,9 @@ void loop() {
       currentLoad
     );
 
-    lastPassengerLog = millis();
-  }
+    publishPassengerCount(currentLoad);
 
-  // poll info bus di halte ini
-  if (millis() - lastBusPoll >= BUS_POLL_INTERVAL) {
-    pollBusAtStop();
-    lastBusPoll = millis();
+    lastPassengerLog = millis();
   }
 
   // scanner masuk (cuman bisa pas statenya idle)
@@ -230,6 +228,7 @@ void connectMqtt() {
     if (mqttClient.connect(clientId, MQTT_USER, MQTT_PASS)) {
       Serial.printf("[MQTT] halte %d konek\n", STOP_ID);
       mqttClient.subscribe(replyTopic); // subscribe topic reply buat nerima balasan request
+      mqttClient.subscribe(busArrivalTopic);
     } else {
       delay(2000);
     }
@@ -331,7 +330,6 @@ void processTicketPurchase(String cardNumber, int originStop, int destStop) {
   if (success && respDoc["ok"] == true) {
     // jika berhasil: current_load++
     currentLoad++;
-    publishPassengerCount(currentLoad);
     showMessage("Tiket siap\nWelcome to halte", ILI9341_GREEN);
     delay(2000);
   } else {
@@ -373,7 +371,6 @@ void handleCardKeluar(String cardNumber) {
 
   if (success && respDoc["ok"] == true) {
     if (currentLoad > 0) currentLoad--;
-    publishPassengerCount(currentLoad);
     showMessage("Selamat jalan!\nTerima kasih", ILI9341_GREEN);
   } else {
     String msg = respDoc["message"] | "Gagal checkout";
@@ -499,6 +496,33 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String msg;
   for (unsigned int i = 0; i < length; i++) {
     msg += (char)payload[i];
+  }
+
+  if (String(topic) == busArrivalTopic) {
+    StaticJsonDocument<128> doc;
+    DeserializationError err = deserializeJson(doc, msg);
+    if (err) return;
+
+    int busId = doc["bus_id"] | -1;
+    int boarded = doc["boarded"] | 0;
+    int alighted = doc["alighted"] | 0;
+
+    Serial.printf("[BUS-ARRIVAL] bus=%d naik=%d turun=%d\n", busId, boarded, alighted);
+
+    if (boarded > 0) {
+      currentLoad -= boarded;
+      currentLoad += alighted;
+      if (currentLoad < 0) currentLoad = 0;
+    }
+
+    selectTFT();
+    tft.fillRect(0, 100, 320, 30, ILI9341_BLACK);
+    tft.setCursor(0, 100);
+    tft.setTextColor(ILI9341_CYAN);
+    tft.printf("Bus %d di halte\nNaik:%d Turun:%d", busId, boarded, alighted);
+    tft.setTextColor(ILI9341_WHITE);
+    deselectTFT();
+    return;
   }
 
   StaticJsonDocument<256> check;
