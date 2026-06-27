@@ -36,6 +36,6 @@ router.use('/iot/passengers', authMiddleware, proxy('http://php-stop:8002', { '^
 
 // ML
 router.use('/predict', authMiddleware, proxy('http://python-ml:5000'));
-router.use('/delay', authMiddleware, proxy('http://python-ml:5000'));
+router.use('/detect', authMiddleware, proxy('http://python-ml:5000'));
 
 module.exports = router;
