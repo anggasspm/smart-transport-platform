@@ -102,6 +102,11 @@ data:
     listener 1883
     allow_anonymous false
     password_file /mosquitto/config/passwd
+  # Pre-hashed credentials for iot_user / iotpassword (PBKDF2-SHA512, mosquitto 2.x format).
+  # Generated once locally with: mosquitto_passwd -c -b passwd_file iot_user iotpassword
+  # Baked in statically so the container never needs write access to /mosquitto/config at runtime.
+  passwd: |
+    iot_user:$7$101$eZnM0ujw8bRy1QkK$sXmRWldEX+zSG1PKXwCi04bBosvrw9p3AjCIGvb9jjEvCzuTrUSSrzZOPVkTwZdwojQ3/73AOe/tu0l0Jvi10A==
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -122,6 +127,7 @@ spec:
           ports: [{ containerPort: 1883 }]
           volumeMounts:
             - { name: mosquitto-conf, mountPath: /mosquitto/config/mosquitto.conf, subPath: mosquitto.conf }
+            - { name: mosquitto-conf, mountPath: /mosquitto/config/passwd, subPath: passwd }
       volumes:
         - name: mosquitto-conf
           configMap: { name: mosquitto-conf }

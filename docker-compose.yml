@@ -271,6 +271,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    volumes:
+      - ./python-ml-service/models:/app/models
 
   # IOT LAYER 
   node-red:
