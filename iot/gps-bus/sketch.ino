@@ -12,7 +12,7 @@
 #include <math.h>
 #include "config.h"
 
-#define BUS_ID 2
+#define BUS_ID 1
 #define RFID_SS_PIN 5
 #define RFID_RST_PIN 4
 #define SCAN_WINDOW_MS 90000
@@ -115,6 +115,9 @@ float engineTemp = 85.0;
 int passengerCount = 0;
 int speed_kmh = 30;
 
+bool released = false;
+unsigned long startWaitTime = 0;
+
 String oledMessage = "";
 unsigned long oledMessageUntil = 0;
 
@@ -149,6 +152,7 @@ int routeId = 1;
 int routeIdx = 0;
 
 char replyTopic[40];
+char commandTopic[40];
 
 volatile bool mqttResponseReceived = false;
 String mqttResponsePayload = "";
@@ -175,7 +179,10 @@ void setup() {
 
   routeId = getRouteId();
   routeIdx = getRouteIdx();
-  currentStopIdx = getInitialStop();
+  currentStopIdx = 0; // semua mulai dari halte pertama
+  currentLat = ROUTES[routeIdx][0].lat;
+  currentLng = ROUTES[routeIdx][0].lng;
+  currentStopId = ROUTES[routeIdx][0].stop_id;
 
   // posisi bus & sedang dekat dengan halte mana
   currentLat = ROUTES[routeIdx][currentStopIdx].lat;
@@ -194,12 +201,65 @@ void setup() {
   mqttClient.setBufferSize(512);
 
   snprintf(replyTopic, sizeof(replyTopic), "city/bus/%d/reply", BUS_ID);
+  snprintf(commandTopic, sizeof(commandTopic), "city/bus/%d/command", BUS_ID);
 
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
   connectMqtt();
 
+  int posInRoute = (BUS_ID - 1) % 3;
+
+  if (posInRoute == 0) {
+    released = true;
+    busState = AT_STOP;
+    stopArrivalTime = millis();
+    stopDuration = random(30, 91) * 1000UL;
+    speed_kmh = 0;
+    scanActive = true;
+    scanStartTime = millis();
+  } else {
+    released = false;
+    busState = AT_STOP;
+    stopArrivalTime = millis();
+    stopDuration = 0xFFFFFFFFUL;
+    speed_kmh = 0;
+    startWaitTime = millis();
+    scanActive = true;
+    scanStartTime = millis();
+  }
+
   Serial.printf("BUS %d pada rute %d, mulai berjalan dari stop_id=%d\n", BUS_ID, routeId, currentStopId);
+}
+
+float segmentDistDeg() {
+    double dLat = ROUTES[routeIdx][1].lat - ROUTES[routeIdx][0].lat;
+    double dLng = ROUTES[routeIdx][1].lng - ROUTES[routeIdx][0].lng;
+    return sqrt(dLat*dLat + dLng*dLng);
+}
+
+unsigned long estimateSegmentMs() {
+    float avgSpeed = 30.0;
+    float SIMULATION_FACTOR = 0.5;
+    float stepPerSec = (avgSpeed / 3600.0) * (1.0 / 111.0) * SIMULATION_FACTOR;
+    float dist = segmentDistDeg();
+    float seconds = dist / stepPerSec;
+    return (unsigned long)(seconds * 1000);
+}
+
+void checkRelease() {
+    if (released) return;
+
+    int posInRoute = (BUS_ID - 1) % 3;
+    unsigned long segMs = estimateSegmentMs();
+
+    unsigned long waitMs = (unsigned long)posInRoute * segMs;
+
+    if (millis() - startWaitTime >= waitMs) {
+        released = true;
+        busState = MOVING;
+        speed_kmh = 30;
+        Serial.printf("[BUS %d] dilepas dari terminal setelah %lu ms\n", BUS_ID, waitMs);
+    }
 }
 
 // nyari kartu passenger
@@ -332,7 +392,7 @@ void loop() {
   // RFID/scanner bus hanya bisa bekerja ketika bus sudah berada di suatu halte
   if (busState == AT_STOP && scanActive) {
     checkRFID();
-    if (millis() - scanStartTime > SCAN_WINDOW_MS) {
+    if (released  && (millis() - scanStartTime > SCAN_WINDOW_MS)) {
       scanActive = false;
       Serial.println("[RFID] Scanner ditutup");
     }
@@ -349,6 +409,12 @@ void loop() {
 
 // update state bus
 void updateBusState() {
+  if (!released) {
+    checkRelease();
+    updateEngineTemp();
+    return;
+  }
+
   switch (busState) {
     case MOVING:
       updateMoving();
@@ -695,11 +761,59 @@ void clearStopBusId(int stop_id) {
   Serial.printf("[MQTT] PUT bus stop=%d jadi %d\n", stop_id, success);
 }
 
+void handleCommand(String payload) {
+  StaticJsonDocument<128> doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Serial.println("[CMD] payload tidak valid");
+    return;
+  }
+
+  String cmd = doc["command"] | "";
+
+  if (cmd == "resume_service") {
+    if (busState != BREAKDOWN && busState != COOLING) {
+      publishCommandAck("resume_service", "rejected", "bus sedang tidak mogok");
+      showMessage("RESUME GAGAL\nbus tidak mogok", 5000);
+      return;
+    }
+    busState = MOVING;
+    speed_kmh = 30;
+    engineTemp = 85.0;
+    showMessage("BUS KEMBALI\nBERTUGAS", 5000);
+    publishCommandAck("resume_service", "success", "");
+  } else {
+    publishCommandAck(cmd, "rejected", "command tidak dikenal");
+  }
+}
+
+void publishCommandAck(String command, String status, String reason) {
+  char topic[40];
+  snprintf(topic, sizeof(topic), "city/bus/%d/command-ack", BUS_ID);
+
+  StaticJsonDocument<160> doc;
+  doc["bus_id"] = BUS_ID;
+  doc["command"] = command;
+  doc["status"] = status;
+  if (reason.length() > 0) doc["reason"] = reason;
+
+  char buf[160];
+  serializeJson(doc, buf);
+  mqttClient.publish(topic, buf);
+  Serial.printf("[CMD-ACK] %s\n", buf);
+}
+
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String msg;
   for (unsigned int i = 0; i < length; i++) {
     msg += (char)payload[i];
   }
+
+  if (String(topic) == commandTopic) {
+    handleCommand(msg);
+    return;
+  }
+
   mqttResponsePayload = msg;
   mqttResponseReceived = true;
 }
@@ -783,6 +897,7 @@ void connectMqtt() {
     if (mqttClient.connect(clientId, MQTT_USER, MQTT_PASS)) {
       Serial.printf("[MQTT] konek sebagai %s\n", clientId);
       mqttClient.subscribe(replyTopic);
+      mqttClient.subscribe(commandTopic);
     } else {
       Serial.printf("[MQTT] gagal konek, state: %d\n", mqttClient.state());
       delay(2000);

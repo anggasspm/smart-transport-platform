@@ -1,10 +1,14 @@
 from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
+
+
 class PredictDelayRequest(BaseModel):
+    bus_id: int
     hour: int = Field(..., ge=0, le=23)
     day_of_week: int = Field(..., ge=0, le=6)
     route_id: str
-    distance_to_stop: float = Field(..., ge=0)
+    weather: int = Field(default=0, ge=0, le=2)
 
 class PredictCrowdRequest(BaseModel):
     stop_id: int

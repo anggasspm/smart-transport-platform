@@ -13,7 +13,8 @@ spec:
     spec:
       containers:
         - name: oauth-server
-          image: smarttransport/oauth-server:latest   
+          image: smarttransport/oauth-server:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 3002 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
@@ -51,6 +52,7 @@ spec:
       containers:
         - name: api-gateway
           image: smarttransport/api-gateway:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 3000 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }

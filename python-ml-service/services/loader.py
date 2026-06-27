@@ -1,5 +1,5 @@
 import json
-import joblib  
+import joblib
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -19,7 +19,7 @@ MODELS_DIR = os.path.abspath(os.path.join(PARENT_DIR, "models"))
 
 def load_joblib(file_name: str):
     path = os.path.join(MODELS_DIR, file_name)
-    return joblib.load(path)  
+    return joblib.load(path)
 
 def load_json(file_name: str):
     path = os.path.join(MODELS_DIR, file_name)
@@ -28,15 +28,16 @@ def load_json(file_name: str):
 
 def load_model_1():
     try:
-        MODELS["model1"]["regressor"] = load_joblib("model1_delay_regressor.pkl")
-        MODELS["model1"]["encoder"] = load_joblib("model1_corridor_encoder.pkl")
-        MODELS["model1"]["config"] = load_json("model1_config.json")
+        MODELS["model1"]["regressor"] = load_joblib("model1_delay_regressor-v2.pkl")
+        MODELS["model1"]["encoder"] = load_joblib("model1_corridor_encoder_v2.pkl")
+        MODELS["model1"]["config"] = load_json("model1_config_v2.json")
         MODELS["model1"]["loaded"] = True
-        logger.info("Model 1 successfully loaded via joblib.")
+        logger.info("Model 1 (v2, speed-deviation based) successfully loaded via joblib.")
     except Exception as e:
         MODELS["model1"]["loaded"] = False
         MODELS["model1"]["error"] = str(e)
         logger.error(f"Failed to load Model 1: {e}")
+
 
 def load_model_2():
     try:
@@ -50,17 +51,18 @@ def load_model_2():
         MODELS["model2"]["error"] = str(e)
         logger.error(f"Failed to load Model 2: {e}")
 
+
 def load_model_3():
     try:
-        MODELS["model3"]["scaler"] = load_joblib("model3_scaler.pkl")
-        MODELS["model3"]["anomaly_detector"] = load_joblib("model3_anomaly_detector.pkl")
-        MODELS["model3"]["config"] = load_json("model3_config.json")
+        MODELS["model3"]["anomaly_detector"] = load_joblib("model3_anomaly_detector_v2.pkl")
+        MODELS["model3"]["config"] = load_json("model3_config_v2.json")
         MODELS["model3"]["loaded"] = True
         logger.info("Model 3 successfully loaded via joblib.")
     except Exception as e:
         MODELS["model3"]["loaded"] = False
         MODELS["model3"]["error"] = str(e)
         logger.error(f"Failed to load Model 3: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

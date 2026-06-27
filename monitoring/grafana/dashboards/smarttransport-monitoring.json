@@ -154,24 +154,36 @@
     },
     {
       "id": 4,
-      "title": "Penggunaan CPU (per kontainer)",
+      "title": "Penggunaan CPU",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum(rate(container_cpu_usage_seconds_total{image!=\"\"}[1m])) by (name) * 100",
-          "legendFormat": "{{name}}",
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)",
+          "legendFormat": "CPU Usage %",
           "refId": "A"
         }
       ]
     },
     {
       "id": 5,
-      "title": "Memory Usage (per container)",
+      "title": "Penggunaan Memory",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "container_memory_usage_bytes{image!=\"\"}",
-          "legendFormat": "{{name}}",
+          "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+          "legendFormat": "Memory Used",
           "refId": "A"
         }
       ]

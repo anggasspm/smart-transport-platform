@@ -1,7 +1,7 @@
 import json
 import logging
 import pika
-from consumers.consumer import connect_with_retry
+from consumers.rabbitmq_utils import connect_with_retry
 
 logger = logging.getLogger(__name__)
 

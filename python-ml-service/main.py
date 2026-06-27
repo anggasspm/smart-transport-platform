@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from services.loader import lifespan, MODELS
 from schemas import PredictDelayRequest, PredictCrowdRequest, DetectAnomalyRequest
-from services.model1_service import predict_model1
+from services.model1_service_v2 import predict_model1_v2
 from services.model2_service import predict_model2
 from services.model3_service import predict_model3
 
@@ -33,7 +33,7 @@ def health():
 
 @app.post("/predict/delay")
 def predict_delay(req: PredictDelayRequest):
-    result = predict_model1(req.model_dump())
+    result = predict_model1_v2(req.model_dump())
     status_code = result.get("code", 200) if isinstance(result, dict) and "code" in result else 200
     return JSONResponse(status_code=status_code, content=result)
 

@@ -14,6 +14,7 @@ spec:
       containers:
         - name: php-passenger
           image: smarttransport/php-passenger:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 8000 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
@@ -47,6 +48,7 @@ spec:
       containers:
         - name: php-fleet
           image: smarttransport/php-fleet:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 8001 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
@@ -80,6 +82,7 @@ spec:
       containers:
         - name: php-stop
           image: smarttransport/php-stop:latest
+          imagePullPolicy: Never
           ports: [{ containerPort: 8002 }]
           envFrom:
             - configMapRef: { name: smarttransport-config }
