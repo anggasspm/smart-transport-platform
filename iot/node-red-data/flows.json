@@ -16,20 +16,16 @@
     {
         "id": "broker_mosquitto",
         "type": "mqtt-broker",
-        "name": "Mosquitto Local",
-        "broker": "mosquitto",
+        "name": "EMQX Public",
+        "broker": "broker.emqx.io",
         "port": "1883",
-        "clientid": "nodered_bridge",
+        "clientid": "nodered_bridge_fauzan",
         "autoConnect": true,
         "usetls": false,
         "protocolVersion": "4",
         "keepalive": "60",
         "cleansession": true,
         "autoUnsubscribe": true,
-        "credentials": {
-            "user": "iot_user",
-            "password": "iotpassword"
-        },
         "birthTopic": "",
         "birthQos": "0",
         "birthPayload": "",
@@ -43,6 +39,16 @@
         "willMsg": {},
         "userProps": "",
         "sessionExpiry": ""
+    },
+    {
+        "id": "broker_amqp",
+        "type": "amqp-broker",
+        "name": "RabbitMQ City Commands",
+        "host": "rabbitmq",
+        "port": "5672",
+        "vhost": "/",
+        "tls": false,
+        "credsFromSettings": false
     },
     {
         "id": "gps_mqtt_in",
@@ -806,54 +812,6 @@
         "wires": []
     },
     {
-        "id": "6c0cc695cb6db9c9",
-        "type": "function",
-        "z": "addc359b5a209750",
-        "name": "function 1",
-        "func": "const metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total 1\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${flow.get('msg_count') || 0}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
-        "outputs": 1,
-        "timeout": 0,
-        "noerr": 0,
-        "initialize": "",
-        "finalize": "",
-        "libs": [],
-        "x": 220,
-        "y": 220,
-        "wires": [
-            [
-                "74a8a6b5bf3ef9e2"
-            ]
-        ]
-    },
-    {
-        "id": "3281e76ca3033ff5",
-        "type": "http in",
-        "z": "addc359b5a209750",
-        "name": "",
-        "url": "/metrics",
-        "method": "get",
-        "upload": false,
-        "swaggerDoc": "",
-        "x": 70,
-        "y": 220,
-        "wires": [
-            [
-                "6c0cc695cb6db9c9"
-            ]
-        ]
-    },
-    {
-        "id": "74a8a6b5bf3ef9e2",
-        "type": "http response",
-        "z": "addc359b5a209750",
-        "name": "",
-        "statusCode": "",
-        "headers": {},
-        "x": 370,
-        "y": 220,
-        "wires": []
-    },
-    {
         "id": "iot_token_inject",
         "type": "inject",
         "z": "tab_iot_bridge",
@@ -898,8 +856,13 @@
         "type": "function",
         "z": "tab_iot_bridge",
         "name": "Set Auth Header",
-        "func": "const token = flow.get('iot_access_token');\nif (!token) { node.warn('No IoT token yet'); return null; }\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + token\n};\nreturn msg;",
+        "func": "const token = flow.get('iot_access_token');\nnode.warn(\"TOKEN IN FLOW: \" + (token ? token.substring(0, 20) + '...' : 'NULL'));\nif (!token) {\n    node.warn('No IoT token yet, sending without valid token (will surface as 401, not silently dropped)');\n}\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Authorization': 'Bearer ' + (token || '')\n};\nreturn msg;",
         "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
         "x": 570,
         "y": 100,
         "wires": [
@@ -996,5 +959,125 @@
         "wires": [
             []
         ]
+    },
+    {
+        "id": "amqp_command_build_topic",
+        "type": "function",
+        "z": "tab_iot_bridge",
+        "name": "Build MQTT Command Topic",
+        "func": "let payload = msg.payload;\n\nif (typeof payload === 'string') {\n    try {\n        payload = JSON.parse(payload);\n    } catch (e) {\n        node.warn('Payload command bukan JSON valid: ' + payload);\n        return null;\n    }\n}\n\nif (!payload.bus_id || !payload.command) {\n    node.warn('Payload command tidak lengkap: ' + JSON.stringify(payload));\n    return null;\n}\n\nmsg.topic = `city/bus/${payload.bus_id}/command`;\nmsg.payload = JSON.stringify(payload);\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 1120,
+        "wires": [
+            [
+                "amqp_command_mqtt_out",
+                "amqp_command_debug"
+            ]
+        ]
+    },
+    {
+        "id": "amqp_command_mqtt_out",
+        "type": "mqtt out",
+        "z": "tab_iot_bridge",
+        "name": "Forward Command to Bus",
+        "topic": "",
+        "qos": "1",
+        "retain": "",
+        "broker": "broker_mosquitto",
+        "x": 750,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "amqp_command_debug",
+        "type": "debug",
+        "z": "tab_iot_bridge",
+        "name": "Command Forwarded",
+        "active": true,
+        "tosidebar": true,
+        "tostatus": true,
+        "complete": "payload",
+        "x": 750,
+        "y": 1140,
+        "wires": []
+    },
+    {
+        "id": "1b563894c9a50cd0",
+        "type": "amqp-in",
+        "z": "tab_iot_bridge",
+        "name": "",
+        "broker": "broker_amqp",
+        "prefetch": 0,
+        "noAck": true,
+        "exchangeName": "city.commands",
+        "exchangeType": "topic",
+        "exchangeRoutingKey": "",
+        "exchangeDurable": true,
+        "queueName": "bus.command",
+        "queueExclusive": false,
+        "queueDurable": true,
+        "queueAutoDelete": false,
+        "headers": "{}",
+        "x": 180,
+        "y": 1120,
+        "wires": [
+            [
+                "amqp_command_build_topic"
+            ]
+        ]
+    },
+    {
+        "id": "6c0cc695cb6db9c9",
+        "type": "function",
+        "z": "addc359b5a209750",
+        "name": "function 1",
+        "func": "const RED = global.get('RED');\nlet flowCount = 0;\ntry {\n    flowCount = RED.nodes.getFlows().flows.filter(n => n.type === 'tab').length;\n} catch (e) {\n    flowCount = 2;\n}\n\nconst msgCount = global.get('msg_count') || 0;\n\nconst metrics = `# HELP nodered_flows_total Total flows in Node-RED\n# TYPE nodered_flows_total gauge\nnodered_flows_total ${flowCount}\n# HELP nodered_uptime_seconds Node-RED uptime in seconds\n# TYPE nodered_uptime_seconds counter\nnodered_uptime_seconds ${Date.now() / 1000}\n# HELP nodered_messages_total Total messages processed\n# TYPE nodered_messages_total counter\nnodered_messages_total ${msgCount}\n`;\nmsg.payload = metrics;\nmsg.headers = { 'Content-Type': 'text/plain; version=0.0.4' };\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 2,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 220,
+        "y": 220,
+        "wires": [
+            [
+                "74a8a6b5bf3ef9e2"
+            ]
+        ]
+    },
+    {
+        "id": "3281e76ca3033ff5",
+        "type": "http in",
+        "z": "addc359b5a209750",
+        "name": "",
+        "url": "/metrics",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 70,
+        "y": 220,
+        "wires": [
+            [
+                "6c0cc695cb6db9c9"
+            ]
+        ]
+    },
+    {
+        "id": "74a8a6b5bf3ef9e2",
+        "type": "http response",
+        "z": "addc359b5a209750",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 370,
+        "y": 220,
+        "wires": []
     }
 ]

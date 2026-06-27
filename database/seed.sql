@@ -74,11 +74,11 @@ INSERT INTO stop_stops (name, route_id, lat, lng, zone_id, sequence_order) VALUE
 
 -- Seed: passenger_passengers
 INSERT INTO passenger_passengers (name, email, phone, card_number, balance, zone_id, role, password) VALUES
-('Budi Santoso', 'budi@mail.com', '081234567890', 'CARD-001', 150000, 1, 'passenger', '$2y$10$dummyhash1'),
-('Siti Rahayu', 'siti@mail.com', '081234567891', 'CARD-002', 200000, 2, 'passenger', '$2y$10$dummyhash2'),
-('Ahmad Fauzi', 'ahmad@mail.com', '081234567892', 'CARD-003', 75000, 1, 'passenger', '$2y$10$dummyhash3'),
-('Dewi Lestari', 'dewi@mail.com', '081234567893', 'CARD-004', 300000, 3, 'passenger', '$2y$10$dummyhash4'),
-('Rizky Pratama', 'rizky@mail.com', '081234567894', 'CARD-005', 50000, 2, 'passenger', '$2y$10$dummyhash5'),
+('Budi Santoso', 'budi@mail.com', '081234567890', 'CARD-001', 150000, 1, 'passenger', '$2b$10$WZ1cNtrMLQJ2wMy1vfypUOk7qPZ46ONU4mhF9cc8IXCsUW69y8IRy'),
+('Siti Rahayu', 'siti@mail.com', '081234567891', 'CARD-002', 200000, 2, 'passenger', '$2b$10$WZ1cNtrMLQJ2wMy1vfypUOk7qPZ46ONU4mhF9cc8IXCsUW69y8IRy'),
+('Ahmad Fauzi', 'ahmad@mail.com', '081234567892', 'CARD-003', 75000, 1, 'passenger', '$2b$10$WZ1cNtrMLQJ2wMy1vfypUOk7qPZ46ONU4mhF9cc8IXCsUW69y8IRy'),
+('Dewi Lestari', 'dewi@mail.com', '081234567893', 'CARD-004', 300000, 3, 'passenger', '$2b$10$WZ1cNtrMLQJ2wMy1vfypUOk7qPZ46ONU4mhF9cc8IXCsUW69y8IRy'),
+('Rizky Pratama', 'rizky@mail.com', '081234567894', 'CARD-005', 50000, 2, 'passenger', '$2b$10$WZ1cNtrMLQJ2wMy1vfypUOk7qPZ46ONU4mhF9cc8IXCsUW69y8IRy'),
 
 ('Andi Saputra', 'andi@mail.com', '081234567895', 'CARD-006', 125000, 1, 'passenger', '$2y$10$dummyhash6'),
 ('Rina Marlina', 'rina@mail.com', '081234567896', 'CARD-007', 180000, 2, 'passenger', '$2y$10$dummyhash7'),
@@ -5092,6 +5092,16 @@ INSERT INTO passenger_tickets (passenger_id, route_id, origin_stop_id, dest_stop
 (4, 5, 9, 10, 'cancelled', 3000);
 
 INSERT INTO oauth_clients (client_id, client_secret, redirect_uri, grant_types) VALUES ('node-red-iot', 'nodered-iot-secret', 'http://localhost', 'client_credentials');
+
+INSERT INTO oauth_clients
+(client_id, client_secret, redirect_uri, grant_types)
+VALUES
+(
+    'smart-transport-app',
+    'smart-transport-secret',
+    'http://localhost',
+    'password,refresh_token'
+);
 
 -- Seed: passenger_notifications
 INSERT INTO passenger_notifications (passenger_id, title, body, type, is_read) VALUES

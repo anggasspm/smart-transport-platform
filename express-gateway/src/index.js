@@ -5,6 +5,9 @@ const proxyRoutes = require('./routes/proxyRoutes');
 const apiLimiter = require('./middleware/rateLimiter');
 const client = require('prom-client');
 const axios = require('axios');
+const commandRoutes = require('./routes/commandRoutes');
+
+app.use(express.json());
 
 const collectDefaultMetrics = client.collectDefaultMetrics;
 
@@ -32,7 +35,7 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(apiLimiter);
+//app.use(apiLimiter);
 
 app.get('/health', async (req, res) => {
     const services = [
@@ -72,6 +75,7 @@ app.get('/metrics', async (req, res) => {
     res.end(await client.register.metrics());
 });
 
+app.use('/', commandRoutes);
 app.use('/', proxyRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
