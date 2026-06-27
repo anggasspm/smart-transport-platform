@@ -101,7 +101,10 @@ class RouteController extends BaseController
             return $this->validationError($this->validator->getErrors());
         }
 
-        $input = $this->request->getRawInput();
+        $input = $this->request->getJSON(true);
+        if (empty($input)) {
+            $input = $this->request->getRawInput();
+        }
         if (empty($input)) {
             $input = (array) $this->request->getVar();
         }
