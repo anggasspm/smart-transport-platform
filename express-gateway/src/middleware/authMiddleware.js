@@ -4,9 +4,23 @@ const { formatResponse } = require('../utils/responseFormatter');
 
 const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
+    console.log("==== AUTH ====");
+console.log(req.method, req.originalUrl);
+console.log(req.headers);
+
     if (!authHeader) {
-        return formatResponse(res, 'error', 401, null, 'Token tidak ditemukan', 'api-gateway');
+        console.log("NO AUTH HEADER");
+        return formatResponse(
+            res,
+            'error',
+            401,
+            null,
+            'Token tidak ditemukan',
+            'api-gateway'
+        );
     }
+
+    console.log("AUTH HEADER:", authHeader);
     
     try {
         const token = authHeader.split(' ')[1];
