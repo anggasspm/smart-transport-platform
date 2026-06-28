@@ -6,7 +6,7 @@
 # PENTING: karena ini in-memory state, hilang kalo container restart. 
 from collections import deque, defaultdict
 
-SPEED_WINDOW_SIZE = 120  # ~1 jam kalau GPS update tiap 30 detik
+SPEED_WINDOW_SIZE = 20  # ~1 jam kalau GPS update tiap 30 detik
 
 speed_history = defaultdict(lambda: deque(maxlen=SPEED_WINDOW_SIZE))
 

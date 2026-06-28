@@ -5,6 +5,7 @@ const axios = require('axios');
 const proxyRoutes = require('./routes/proxyRoutes');
 const apiLimiter = require('./middleware/rateLimiter');
 const client = require('prom-client');
+const commandRoutes = require('./routes/commandRoutes');
 
 const collectDefaultMetrics = client.collectDefaultMetrics;
 
@@ -68,8 +69,9 @@ app.get('/metrics', async (req, res) => {
     res.end(await client.register.metrics());
 });
 
-// app.use(apiLimiter);
+//app.use(apiLimiter);
 
+app.use('/', commandRoutes);
 app.use('/', proxyRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
