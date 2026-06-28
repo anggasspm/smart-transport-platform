@@ -16,16 +16,14 @@ app = FastAPI(
 def health():
     model_status = {}
     all_healthy = True
-    
     for model_name, info in MODELS.items():
         loaded = info.get("loaded", False)
         model_status[model_name] = {
             "status": "LOADED" if loaded else "FAILED",
-            "error": info.get("error")  
+            "error": info.get("error")
         }
         if not loaded:
             all_healthy = False
-            
     return {
         "status": "healthy" if all_healthy else "degraded",
         "models": model_status

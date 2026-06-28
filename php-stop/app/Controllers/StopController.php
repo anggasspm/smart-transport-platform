@@ -162,8 +162,10 @@ class StopController extends BaseController
         $db = \Config\Database::connect();
         $body = $this->request->getJSON(true);
 
+	 log_message('debug', json_encode($body));
+
         $stopId = $body['stop_id'] ?? 0;
-        $newLoad = (int) ($body['current_load'] ?? 0);
+        $newLoad = (int) ($body['prev_count'] ?? 0);
         $busId = $body['bus_id'] ?? null;
 
         $db->transStart();
@@ -187,6 +189,25 @@ class StopController extends BaseController
         ]);
 
         $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return $this->respond(500, null, 'Failed to update current load');
+        }
+
+        try {
+
+            \App\Services\RabbitMQPublisher::publish('passenger.boarded', [
+                'stop_id' => $stopId,
+                'hour' => (int) ($body['hour'] ?? date('G')),
+                'day_of_week' => (int) ($body['day_of_week'] ?? date('N') - 1),
+                'weather' => (int) ($body['weather'] ?? 0),
+                'prev_count' => (int) ($last['current_load'] ?? 0),
+                'is_holiday' => (int) ($body['is_holiday'] ?? 0),
+            ]);
+
+        } catch (\Throwable $e) {
+            log_message('error', $e->getMessage());
+        }
 
         return $this->respond(200, null, 'Current load updated');
     }

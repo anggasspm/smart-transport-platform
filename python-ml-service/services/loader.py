@@ -2,6 +2,7 @@ import json
 import joblib
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
@@ -29,48 +30,51 @@ def load_json(file_name: str):
 def load_model_1():
     try:
         MODELS["model1"]["regressor"] = load_joblib("model1_delay_regressor_v2.pkl")
-        MODELS["model1"]["encoder"] = load_joblib("model1_corridor_encoder_v2.pkl")
-        MODELS["model1"]["config"] = load_json("model1_config_v2.json")
+        MODELS["model1"]["encoder"]   = load_joblib("model1_corridor_encoder_v2.pkl")
+        MODELS["model1"]["config"]    = load_json("model1_config_v2.json")
         MODELS["model1"]["loaded"] = True
-        logger.info("Model 1 (v2, speed-deviation based) successfully loaded via joblib.")
+        logger.info("Model 1 (v2) successfully loaded.")
     except Exception as e:
         MODELS["model1"]["loaded"] = False
         MODELS["model1"]["error"] = str(e)
         logger.error(f"Failed to load Model 1: {e}")
 
-
 def load_model_2():
     try:
-        MODELS["model2"]["classifier"] = load_joblib("model2_crowd_classifier.pkl")
+        MODELS["model2"]["classifier"]     = load_joblib("model2_crowd_classifier.pkl")
         MODELS["model2"]["target_mapping"] = load_joblib("model2_target_mapping.pkl")
-        MODELS["model2"]["feature_order"] = load_joblib("model2_feature_order.pkl")
+        MODELS["model2"]["feature_order"]  = load_joblib("model2_feature_order.pkl")
         MODELS["model2"]["loaded"] = True
-        logger.info("Model 2 successfully loaded via joblib.")
+        logger.info("Model 2 successfully loaded.")
     except Exception as e:
         MODELS["model2"]["loaded"] = False
         MODELS["model2"]["error"] = str(e)
         logger.error(f"Failed to load Model 2: {e}")
 
-
 def load_model_3():
     try:
         MODELS["model3"]["anomaly_detector"] = load_joblib("model3_anomaly_detector_v2.pkl")
-        MODELS["model3"]["config"] = load_json("model3_config_v2.json")
+        MODELS["model3"]["config"]           = load_json("model3_config_v2.json")
         MODELS["model3"]["loaded"] = True
-        logger.info("Model 3 successfully loaded via joblib.")
+        logger.info("Model 3 (v2) successfully loaded.")
     except Exception as e:
         MODELS["model3"]["loaded"] = False
         MODELS["model3"]["error"] = str(e)
         logger.error(f"Failed to load Model 3: {e}")
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Load semua model dulu
     load_model_1()
     load_model_2()
     load_model_3()
+    # Baru start consumer setelah model semua loaded
+    from consumers.consumer import start_consumer
+    t = threading.Thread(target=start_consumer, daemon=True)
+    t.start()
+    logger.info("Consumer thread started.")
     yield
-    logger.info("Shutting down application and clearing model registry.")
+    logger.info("Shutting down.")
     for model_key in MODELS:
         for artifact_key in MODELS[model_key]:
             if artifact_key not in ["loaded", "error"]:
