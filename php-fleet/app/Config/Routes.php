@@ -26,18 +26,18 @@ $routes->group('api', function ($routes) {
 
     // Bus CRUD
     $routes->get('buses',              'Api\BusController::index');
-    $routes->post('buses',             'Api\BusController::create');
+    $routes->post('buses',             'Api\BusController::create', ['filter' => 'role:admin']);
     $routes->get('buses/(:num)',       'Api\BusController::show/$1');
-    $routes->patch('buses/(:num)',     'Api\BusController::update/$1');
-    $routes->delete('buses/(:num)',    'Api\BusController::delete/$1');
+    $routes->patch('buses/(:num)',     'Api\BusController::update/$1', ['filter' => 'role:admin']);
+    $routes->delete('buses/(:num)',    'Api\BusController::delete/$1', ['filter' => 'role:admin']);
     $routes->get('buses/(:num)/location', 'Api\BusController::location/$1');
 
     // Route CRUD
     $routes->get('routes',             'Api\RouteController::index');
-    $routes->post('routes',            'Api\RouteController::create');
+    $routes->post('routes',            'Api\RouteController::create', ['filter' => 'role:admin']);
     $routes->get('routes/(:num)',      'Api\RouteController::show/$1');
-    $routes->patch('routes/(:num)',    'Api\RouteController::update/$1');
-    $routes->delete('routes/(:num)',   'Api\RouteController::delete/$1');
+    $routes->patch('routes/(:num)',    'Api\RouteController::update/$1', ['filter' => 'role:admin']);
+    $routes->delete('routes/(:num)',   'Api\RouteController::delete/$1', ['filter' => 'role:admin']);
     $routes->get('routes/(:num)/buses', 'Api\RouteController::buses/$1');
 
     // GPS log endpoints

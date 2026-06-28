@@ -34,6 +34,7 @@ console.log(req.headers);
             if (response.data.user_id) {
                 req.headers['x-user-id'] = response.data.user_id.toString();
             }
+            req.headers['x-user-role'] = response.data.role ?? 'passenger';
             
             return next();
         } else {
