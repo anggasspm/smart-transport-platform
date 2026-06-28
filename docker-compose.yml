@@ -262,7 +262,7 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-admin}
       RABBITMQ_PASS: ${RABBITMQ_PASS:-adminpass}
-      MODEL_PATH: models/smarttransport_models.pkl
+      MODEL_PATH: models/model1_delay_regressor_v2.pkl
     depends_on:
       rabbitmq:
         condition: service_healthy

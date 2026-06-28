@@ -5,9 +5,13 @@ require 'vendor/autoload.php';
 
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-$env = parse_ini_file(__DIR__ . '/../../.env');
-foreach ($env as $key => $val) {
-    $_ENV[$key] = $val;
+// Parse .env manual karena parse_ini_file tidak support karakter '!'
+$envFile = file(__DIR__ . '/../../.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+foreach ($envFile as $line) {
+    if (strpos(trim($line), '#') === 0) continue; // skip komentar
+    if (strpos($line, '=') === false) continue;
+    [$key, $val] = explode('=', $line, 2);
+    $_ENV[trim($key)] = trim($val);
 }
 
 $conn    = new AMQPStreamConnection(

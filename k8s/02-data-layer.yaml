@@ -77,6 +77,10 @@ spec:
               valueFrom: { secretKeyRef: { name: smarttransport-secret, key: RABBITMQ_PASS } }
           readinessProbe:
             exec: { command: ["rabbitmq-diagnostics", "ping"] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
             initialDelaySeconds: 15
             periodSeconds: 10
 ---

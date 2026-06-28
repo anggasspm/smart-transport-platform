@@ -5205,7 +5205,7 @@ ON DUPLICATE KEY UPDATE
         DECLARE b INT;
         DECLARE r INT;
         WHILE i <= 200 DO
-            SET b = MOD(i - 1, 30) + 1;          docker compose ps -a
+            SET b = MOD(i - 1, 30) + 1;         
 
             SET r = FLOOR((b - 1) / 3) + 1;       
             INSERT INTO fleet_gps_logs
