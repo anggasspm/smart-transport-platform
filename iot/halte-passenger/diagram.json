@@ -4,8 +4,20 @@
   "editor": "wokwi",
   "parts": [
     { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
-    { "type": "board-mfrc522", "id": "rfid1", "top": 122.15, "left": 157.04, "attrs": {} },
-    { "type": "board-mfrc522", "id": "rfid2", "top": -98.65, "left": 157.04, "attrs": {} },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid1",
+      "top": 122.15,
+      "left": 157.04,
+      "attrs": { "cardUid": "43 30 30 31" }
+    },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid2",
+      "top": -98.65,
+      "left": 157.04,
+      "attrs": { "cardUid": "43 30 30 31" }
+    },
     { "type": "wokwi-ili9341", "id": "lcd1", "top": -248.8, "left": -221.1, "attrs": {} },
     {
       "type": "wokwi-pushbutton",
@@ -28,7 +40,8 @@
       "top": 179,
       "left": -144,
       "attrs": { "color": "green", "xray": "1" }
-    }
+    },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr1", "top": -208, "left": -28, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -65,7 +78,10 @@
     [ "btn1:1.l", "esp:14", "green", [ "h38.4", "v-19.2" ] ],
     [ "btn1:1.r", "esp:GND.1", "green", [ "v0", "h-9.8", "v19.2", "h124.8", "v-19.2", "h0" ] ],
     [ "lcd1:GND", "esp:GND.1", "black", [ "v19.2", "h96", "v96", "h71.81" ] ],
-    [ "lcd1:VCC", "esp:3V3", "red", [ "v9.6", "h144", "v-19.2" ] ]
+    [ "lcd1:VCC", "esp:3V3", "red", [ "v9.6", "h144", "v-19.2" ] ],
+    [ "ldr1:VCC", "esp:3V3", "red", [ "h19.2", "v67.2", "h-163.2", "v38.4" ] ],
+    [ "ldr1:GND", "esp:GND.1", "black", [ "h28.8", "v66.8", "h-201.6", "v268.8", "h33.41" ] ],
+    [ "ldr1:AO", "esp:34", "green", [ "h9.6", "v28.1", "h-172.8" ] ]
   ],
   "dependencies": {}
 }

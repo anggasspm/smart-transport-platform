@@ -800,7 +800,7 @@ void publishCommandAck(String command, String status, String reason) {
   char buf[160];
   serializeJson(doc, buf);
   mqttClient.publish(topic, buf);
-  Serial.printf("[CMD-ACK] %s\n", buf);
+  Serial.printf("[COMMAND] %s\n", buf);
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {

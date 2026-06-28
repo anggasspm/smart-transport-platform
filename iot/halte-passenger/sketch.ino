@@ -29,6 +29,8 @@ struct StopOption {
 #define BTN_DOWN 33
 #define BTN_SELECT 14
 
+#define LDR_PIN 34
+
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
 const char* MQTT_SERVER = MQTT_SERVER_HOST;
@@ -66,6 +68,34 @@ int selectedDestIdx = 0;
 
 StopOption stopOptions[5];
 int stopCount = 0;
+
+struct Holiday {
+  uint16_t year;
+  uint8_t month;
+  uint8_t day;
+};
+
+const Holiday HOLIDAYS[] = {
+  {2026, 1, 1},   // tahun Baru
+  {2026, 1, 27},  // isra miraj
+  {2026, 1, 29},  // imlek
+  {2026, 3, 29},  // nyepi
+  {2026, 3, 31},  // idul fitri
+  {2026, 4, 1},   // idul fitri
+  {2026, 4, 18},  // wafat isa almasih
+  {2026, 4, 20},  // paskah
+  {2026, 5, 1},   // hari buruh
+  {2026, 5, 12},  // waisak
+  {2026, 5, 29},  // kenaikan isa almasih
+  {2026, 6, 1},   // hari lahir pancasila
+  {2026, 6, 7},   // idul adha
+  {2026, 6, 27},  // tahun baru islam
+  {2026, 8, 17},  // kemerdekaan indonesia
+  {2026, 9, 5},   // maulid nabi
+  {2026, 12, 25}  // natal
+};
+
+const int NUM_HOLIDAYS = sizeof(HOLIDAYS) / sizeof(Holiday);
 
 // polling bus info
 unsigned long lastBusPoll = 0;
@@ -117,6 +147,8 @@ void setup() {
   pinMode(BTN_DOWN, INPUT_PULLUP);
   pinMode(BTN_SELECT, INPUT_PULLUP);
 
+  pinMode(LDR_PIN, INPUT);
+
   selectTFT();
 
   tft.begin();
@@ -132,7 +164,7 @@ void setup() {
   snprintf(replyTopic, sizeof(replyTopic), "city/stop/%d/reply", STOP_ID);
   snprintf(busArrivalTopic, sizeof(busArrivalTopic), "city/stop/%d/bus-arrival", STOP_ID);
 
-  mqttClient.setBufferSize(1024);
+  mqttClient.setBufferSize(4096);
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
   connectMqtt();
@@ -197,17 +229,68 @@ void loop() {
   delay(100);
 }
 
+int getDayOfWeek() {
+  struct tm t;
+  if (!getLocalTime(&t)) return 0;
+
+  return (t.tm_wday == 0) ? 6 : (t.tm_wday - 1);
+}
+
+int getIsHoliday() {
+  struct tm t;
+  if (!getLocalTime(&t)) return 0;
+
+  int year = t.tm_year + 1900;
+  int month = t.tm_mon + 1;
+  int day = t.tm_mday;
+
+  for (int i = 0; i < NUM_HOLIDAYS; i++) {
+    if (HOLIDAYS[i].year == year &&
+        HOLIDAYS[i].month == month &&
+        HOLIDAYS[i].day == day) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int getWeather() {
+
+  int light = analogRead(LDR_PIN);
+
+  Serial.printf("LDR = %d\n", light);
+
+  if (light > 3000) {
+    return 0; // gelap
+  }
+
+  if (light > 1500) {
+    return 1; // mendung
+  }
+
+  return 2; // cerah
+}
+
 void publishPassengerCount(int current_load) {
   if (!mqttClient.connected()) connectMqtt();
 
   char topic[40];
   snprintf(topic, sizeof(topic), "city/stop/%d/passengers", STOP_ID);
 
-  StaticJsonDocument<128> doc;
-  doc["stop_id"] = STOP_ID;
-  doc["current_load"] = current_load;
+  StaticJsonDocument<256> doc;
 
-  char buf[128];
+  struct tm t;
+  getLocalTime(&t);
+
+  doc["stop_id"] = STOP_ID;
+  doc["hour"] = t.tm_hour;
+  doc["day_of_week"] = getDayOfWeek();
+  doc["weather"] = getWeather();
+  doc["prev_count"] = current_load;
+  doc["is_holiday"] = getIsHoliday();
+
+  char buf[256];
   serializeJson(doc, buf);
 
   bool ok = mqttClient.publish(topic, buf);
@@ -219,6 +302,8 @@ void publishPassengerCount(int current_load) {
     totalMasuk,
     totalKeluar
   );
+
+  Serial.printf("[RabbitMQ] %s\n", buf);
 }
 
 void connectMqtt() {
@@ -330,6 +415,7 @@ void processTicketPurchase(String cardNumber, int originStop, int destStop) {
   if (success && respDoc["ok"] == true) {
     // jika berhasil: current_load++
     currentLoad++;
+    totalMasuk++; 
     showMessage("Tiket siap\nWelcome to halte", ILI9341_GREEN);
     delay(2000);
   } else {
@@ -366,11 +452,25 @@ void handleCardKeluar(String cardNumber) {
   String resp;
   bool success = mqttRequestResponse("city/tickets/checkout", body, resp);
 
-  StaticJsonDocument<256> respDoc;
+  Serial.println("========== CHECKOUT ==========");
+  Serial.println(success);
+  Serial.println(resp);
+  Serial.println("==============================");
+
+  StaticJsonDocument<512> respDoc;
+  DeserializationError err = deserializeJson(respDoc, resp);
+
+  Serial.print("deserialize = ");
+  Serial.println(err.c_str());
+
+  serializeJsonPretty(respDoc, Serial);
+  Serial.println();
+
   if (success) deserializeJson(respDoc, resp);
 
   if (success && respDoc["ok"] == true) {
     if (currentLoad > 0) currentLoad--;
+    totalKeluar++;
     showMessage("Selamat jalan!\nTerima kasih", ILI9341_GREEN);
   } else {
     String msg = respDoc["message"] | "Gagal checkout";
@@ -431,7 +531,7 @@ bool validateCard(String cardNumber, int& passengerId, float& balance) {
     return false;
   }
 
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<1028> doc;
   deserializeJson(doc, resp);
 
   if (doc["data"].isNull()) {
@@ -440,7 +540,7 @@ bool validateCard(String cardNumber, int& passengerId, float& balance) {
   }
 
   passengerId = doc["data"]["id"].as<String>().toInt();
-  balance     = doc["data"]["balance"].as<String>().toFloat();
+  balance = doc["data"]["balance"].as<String>().toFloat();
 
   return passengerId > 0;
 }
@@ -479,9 +579,31 @@ int fetchStopsOnRoute(int currentStopId, StopOption* options) {
   String resp;
   int count = 0;
   if (mqttRequestResponse("city/stops/route/get", body, resp)) {
-    DynamicJsonDocument doc(1024);
-    deserializeJson(doc, resp);
+
+    Serial.println("========== RESPONSE ==========");
+    Serial.println(resp);
+    Serial.println("==============================");
+
+    DynamicJsonDocument doc(4096);
+
+    DeserializationError err = deserializeJson(doc, resp);
+
+    if (err) {
+        Serial.print("deserialize error: ");
+        Serial.println(err.c_str());
+        Serial.println(resp);
+        return 0;
+    }
+
+    Serial.print("ERR = ");
+    Serial.println(err.c_str());
+
     JsonArray arr = doc["data"].as<JsonArray>();
+
+    Serial.print("SIZE = ");
+    Serial.println(arr.size());
+
+    deserializeJson(doc, resp);
     for (JsonObject s : arr) {
       if (count >= 5) break;
       options[count].stop_id = s["id"].as<String>().toInt();
