@@ -29,6 +29,7 @@ router.use('/api/incidents', proxy('http://php-fleet:8001'));
 
 // Stop Service
 router.use('/api/stops', proxy('http://php-stop:8002'));
+router.use('/api/alerts', proxy('http://php-stop:8002'));
 
 // IoT
 router.use('/iot/gps', authMiddleware, proxy('http://php-fleet:8001', { '^/iot/gps': '/api/gps' }));
