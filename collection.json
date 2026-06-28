@@ -1331,7 +1331,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"hour\": 8,\n  \"day_of_week\": 1,\n  \"route_id\": \"R01\",\n  \"weather\": 0\n}"
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"hour\": 8,\n  \"day_of_week\": 1,\n  \"route_id\": \"9\",\n  \"weather\": 0\n}"
             },
             "url": {
               "raw": "{{gateway_url}}/predict/delay",
