@@ -35,30 +35,23 @@ module.exports = {
     },
 
     async getUser(username, password) {
-
         const [rows] = await pool.execute(
-            `
-            SELECT id,email,password
+            `SELECT id, email, password, role
             FROM passenger_passengers
             WHERE email = ?
-            LIMIT 1
-            `,
+            LIMIT 1`,
             [username]
         );
 
-        if (rows.length === 0)
-            return null;
+        if (rows.length === 0) return null;
 
         const passenger = rows[0];
-
         const ok = await bcrypt.compare(password, passenger.password);
-
-        if (!ok) {
-            return null;
-        }
+        if (!ok) return null;
 
         return {
-            id: passenger.id
+            id: passenger.id,
+            role: passenger.role
         };
     },
 
@@ -104,42 +97,35 @@ module.exports = {
                 clientId: client.clientId
             },
             user: user
-                ? { id: user.id }
+                ? { id: user.id, role: user.role }
                 : null
         };
     },
 
     async getAccessToken(accessToken) {
-
         const [rows] = await pool.execute(
-            `
-            SELECT *
-            FROM oauth_tokens
-            WHERE access_token = ?
-            LIMIT 1
-            `,
+            `SELECT t.*, p.role
+            FROM oauth_tokens t
+            LEFT JOIN passenger_passengers p ON t.user_id = p.id
+            WHERE t.access_token = ?
+            LIMIT 1`,
             [accessToken]
         );
 
-        if (rows.length === 0)
-            return null;
+        if (rows.length === 0) return null;
 
         const token = rows[0];
-
-        if(new Date(token.access_token_expires_at)<new Date())
-            return null;
+        if (new Date(token.access_token_expires_at) < new Date()) return null;
 
         return {
             accessToken: token.access_token,
             accessTokenExpiresAt: token.access_token_expires_at,
             refreshToken: token.refresh_token,
             refreshTokenExpiresAt: token.refresh_token_expires_at,
-            client: {
-                id: token.client_id,
-                clientId: token.client_id
-            },
+            client: { id: token.client_id, clientId: token.client_id },
             user: {
-                id: token.user_id ?? 0
+                id: token.user_id ?? 0,
+                role: token.role ?? 'passenger'
             }
         };
     },

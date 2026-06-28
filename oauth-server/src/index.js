@@ -94,6 +94,7 @@ app.post('/oauth/introspect', async (req, res) => {
         res.json({
             active: true,
             user_id: tokenInfo.user ? tokenInfo.user.id : undefined,
+            role: tokenInfo.user ? tokenInfo.user.role : undefined,
             client_id: tokenInfo.client ? tokenInfo.client.id : undefined,
             scope: tokenInfo.scope,
             exp: tokenInfo.accessTokenExpiresAt
