@@ -81,7 +81,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 10
             failureThreshold: 6
-            initialDelaySeconds: 15
             periodSeconds: 10
 ---
 apiVersion: v1

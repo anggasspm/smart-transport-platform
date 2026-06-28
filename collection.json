@@ -1,1518 +1,10 @@
 {
   "info": {
-    "_postman_id": "ef8808bc-1e21-4100-994a-26e5ce33245a",
-    "name": "Smart Transport Platform",
-    "description": "Alur testing end-to-end: Get Token (OAuth) -> Fleet Service (Bus/Route/GPS/Incident) -> Passenger Service (Register/Ticket) -> Stop Service (Halte/Boarding) -> ML Service (Predict/Anomaly). Base IP: 103.147.92.135.\n\nCATATAN PENTING SEBELUM MULAI:\n\n1. database/seed.sql SUDAH ADA dan SUDAH BERISI data lengkap — tidak perlu insert manual.\n    \n2. fleet_buses SUDAH ADA 30 data (id 1-30) dan fleet_routes SUDAH ADA 10 data (id 1-10) — TIDAK perlu create manual, langsung pakai bus_id/route_id 1-10 untuk testing GET/GPS/dst. fleet_gps_logs juga sudah ada 200 data dummy.\n    \n3. ADA 2 TOKEN TERPISAH, JANGAN DICAMPUR — masing-masing punya variable sendiri supaya tidak saling menimpa:\n    - {{access_token_iot}}: dari client_credentials grant (client node-red-iot/nodered-iot-secret). user_id SELALU 0. PAKAI HANYA untuk endpoint IoT/service-to-service (GPS update, passenger count, dst).\n        \n    - {{access_token_user}}: dari password grant (client smart-transport-app/smart-transport-secret, username [budi@mail.com](https://mailto:budi@mail.com) / password 123456 — atau siti@/ahmad@/dewi@/rizky@mail.com, password sama). user_id sesuai passenger asli (1-5). PAKAI untuk endpoint yang mewakili passenger tertentu (beli tiket, lihat notifikasi sendiri, dst) — endpoint ini akan SELALU 401 'Unauthorized' kalau dikasih access_token_iot.  \n        CATATAN: passenger id 6+ ([andi@mail.com](https://mailto:andi@mail.com) dst) punya hash placeholder TIDAK VALID, belum bisa login.\n        \n4. passenger_tickets SUDAH ADA 5 data seed (id 1-5) — bisa langsung test GET /api/tickets tanpa create dulu.\n    \n5. Known gap: /api/incidents TIDAK ada proxy di gateway -> akses langsung ke php-fleet (port 8001).\n    \n6. Known gap (FIXED di proxyRoutes.js terbaru): POST /api/passengers/count dan /detect/anomaly sebelumnya tidak ter-proxy dengan benar — sudah diperbaiki dengan reorder rule dan tambah proxy /detect.\n    \n7. FIXED: bug 'socket hang up' pada semua POST/PATCH lewat gateway sudah diperbaiki (root cause: express.json() global di index.js konflik dengan http-proxy-middleware — dipindah jadi scoped khusus di commandRoutes.js).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "45042580",
-    "_collection_link": "https://go.postman.co/collection/45042580-ef8808bc-1e21-4100-994a-26e5ce33245a?source=collection_link"
+    "_postman_id": "smart-transport",
+    "name": "Smart Transport Platform — S0-S6",
+    "description": "Collection end-to-end S0–S6. IP: 103.147.92.135\n\nCATATAN:\n- Seed: 30 buses, 10 routes, 200 GPS logs, 5 tickets\n- access_token_iot: client_credentials (user_id=0) → IoT endpoints\n- access_token_user: password grant budi@mail.com/123456 → passenger endpoints\n- access_token_admin: password grant admin@mail.com/123456 → admin endpoints\n- /api/incidents sudah via gateway\n- Consumer ML sudah otomatis jalan via FastAPI lifespan",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "item": [
-    {
-      "name": "00 - Health Checks (Semua Service)",
-      "item": [
-        {
-          "name": "GET Gateway Health",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/health",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Cek status gabungan: oauth_server, php_passenger, php_stop, php_fleet semuanya harus 'UP'."
-          },
-          "response": []
-        },
-        {
-          "name": "GET OAuth Server Health",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{oauth_url}}/health",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Fleet Service Health (direct)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{fleet_direct_url}}/health",
-              "host": [
-                "{{fleet_direct_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Cek database.connected dan rabbitmq.connected harus true."
-          },
-          "response": []
-        },
-        {
-          "name": "GET Passenger Service Health (direct)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{passenger_direct_url}}/health",
-              "host": [
-                "{{passenger_direct_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Stop Service Health (direct)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{stop_direct_url}}/health",
-              "host": [
-                "{{stop_direct_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET ML Service Health (direct)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{ml_direct_url}}/health",
-              "host": [
-                "{{ml_direct_url}}"
-              ],
-              "path": [
-                "health"
-              ]
-            },
-            "description": "Cek model1, model2, model3 semuanya status 'LOADED'."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "01 - OAuth (Wajib Sebelum Testing Lain)",
-      "item": [
-        {
-          "name": "POST Get Token (password grant - real user_id)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('access_token_user', json.accessToken);",
-                  "    console.log('access_token_user saved (passenger user_id=' + json.user.id + '):', json.accessToken);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "password"
-                },
-                {
-                  "key": "username",
-                  "value": "budi@mail.com"
-                },
-                {
-                  "key": "password",
-                  "value": "123456"
-                },
-                {
-                  "key": "client_id",
-                  "value": "smart-transport-app"
-                },
-                {
-                  "key": "client_secret",
-                  "value": "smart-transport-secret"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_url}}/oauth/token",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "oauth",
-                "token"
-              ]
-            },
-            "description": "PENTING — pakai request ini (bukan client_credentials) untuk endpoint yang butuh user_id asli, seperti POST /api/tickets. \n\ngetUserFromClient() di oauth model.js SELALU return {id: 0} untuk client_credentials grant — dan karena 0 itu falsy di JavaScript, authMiddleware.js TIDAK PERNAH set header X-User-Id untuk grant itu. Akibatnya endpoint yang cek X-User-Id (misal TicketController::store) selalu 401.\n\nKredensial terverifikasi dari seed: email budi@mail.com (passenger id=1, Budi Santoso) / password plaintext '123456' (sudah diverifikasi cocok dengan hash bcrypt seed). Client smart-transport-app punya grant_types 'password,refresh_token' (BUKAN client_credentials).\n\nPassenger seed lain yang bisa dipakai sama (password sama '123456'): siti@mail.com (id=2), ahmad@mail.com (id=3), dewi@mail.com (id=4), rizky@mail.com (id=5). Passenger id 6+ (andi@mail.com dst) punya hash placeholder TIDAK VALID ('$2y$10$dummyhash...') — tidak akan bisa login sampai di-replace hash asli."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Get Token (password grant - Admin)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set(\"access_token_admin\", json.accessToken);",
-                  "    console.log(\"access_token_admin saved (role=admin):\", json.accessToken);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "password"
-                },
-                {
-                  "key": "username",
-                  "value": "admin@mail.com"
-                },
-                {
-                  "key": "password",
-                  "value": "123456"
-                },
-                {
-                  "key": "client_id",
-                  "value": "smart-transport-app"
-                },
-                {
-                  "key": "client_secret",
-                  "value": "smart-transport-secret"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_url}}/oauth/token",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "oauth",
-                "token"
-              ]
-            },
-            "description": "Login sebagai admin. Token disimpan ke {{access_token_admin}}. Pakai token ini untuk endpoint yang butuh role admin: POST/PATCH/DELETE /api/buses dan POST/PATCH/DELETE /api/routes. Gateway inject header x-user-role=admin dari hasil introspect token, lalu php-fleet cek via RoleFilter."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Get Token (client_credentials - IoT/service-to-service)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('access_token_iot', json.accessToken);",
-                  "    console.log('access_token_iot saved (service/IoT, user_id always 0):', json.accessToken);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "grant_type",
-                  "value": "client_credentials"
-                },
-                {
-                  "key": "client_id",
-                  "value": "{{client_id}}"
-                },
-                {
-                  "key": "client_secret",
-                  "value": "{{client_secret}}"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_url}}/oauth/token",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "oauth",
-                "token"
-              ]
-            },
-            "description": "PENTING: pakai client_credentials HANYA untuk skenario IoT/service-to-service (GPS update, passenger count, dst) — JANGAN dipakai untuk endpoint yang mewakili passenger tertentu seperti beli tiket atau lihat notifikasi sendiri.\n\ngetUserFromClient() di oauth model.js selalu return {id: 0} untuk grant ini, sehingga X-User-Id yang di-inject gateway tidak pernah ter-set (0 bersifat falsy di JS) — endpoint yang mengecek X-User-Id (TicketController, NotifController) akan selalu balas 401 'Unauthorized' kalau dikasih token ini. Untuk endpoint itu, pakai 'POST Get Token (password grant)' di atas sebagai gantinya — hasilnya tersimpan di variable terpisah {{access_token_user}}, sehingga tidak akan saling menimpa dengan {{access_token_iot}} dari request ini."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Introspect Token",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "token",
-                  "value": "{{access_token_user}}"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_url}}/oauth/introspect",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "oauth",
-                "introspect"
-              ]
-            },
-            "description": "Expected: {\"active\":true,\"user_id\":1,...}. Default pakai access_token_user — ganti value jadi {{access_token_iot}} di body kalau mau cek token IoT (expected user_id:0)."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Revoke Token (jalankan TERAKHIR, akan invalidate token)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/x-www-form-urlencoded"
-              }
-            ],
-            "body": {
-              "mode": "urlencoded",
-              "urlencoded": [
-                {
-                  "key": "token",
-                  "value": "{{access_token_user}}"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{oauth_url}}/oauth/revoke",
-              "host": [
-                "{{oauth_url}}"
-              ],
-              "path": [
-                "oauth",
-                "revoke"
-              ]
-            },
-            "description": "Default revoke access_token_user. Ganti value jadi {{access_token_iot}} di body kalau mau revoke token IoT sebagai gantinya."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "02 - Fleet Service (lewat Gateway, port 9000)",
-      "item": [
-        {
-          "name": "POST Create Bus",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('bus_id', json.data.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_admin}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"plate_number\": \"B1234XYZ\",\n  \"capacity\": 40,\n  \"status\": \"active\",\n  \"driver_name\": \"Test Driver\"\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/buses",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "buses"
-              ]
-            },
-            "description": "BUTUH ROLE ADMIN — pakai {{access_token_admin}}. Route ini PUBLIK di gateway (tidak pakai authMiddleware) per versi terbaru proxyRoutes.js."
-          },
-          "response": []
-        },
-        {
-          "name": "GET List Buses",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/buses",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "buses"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Bus by ID",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/buses/{{bus_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "buses",
-                "{{bus_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "PATCH Update Bus",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_admin}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"driver_name\": \"Updated Driver\",\n  \"status\": \"maintenance\"\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/buses/{{bus_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "buses",
-                "{{bus_id}}"
-              ]
-            },
-            "description": "BUTUH ROLE ADMIN — pakai {{access_token_admin}}. PERLU FIX getJSON(true) di BusController::update() supaya body JSON terbaca. Tanpa fix ini akan selalu 'No updatable fields provided'."
-          },
-          "response": []
-        },
-        {
-          "name": "GET Bus Location",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/buses/{{bus_id}}/location",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "buses",
-                "{{bus_id}}",
-                "location"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Create Route",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('route_id', json.data.id);",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_admin}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Rute Halte A - Halte B\",\n  \"origin\": \"Halte A\",\n  \"destination\": \"Halte B\",\n  \"total_stops\": 5,\n  \"distance_km\": 12.5,\n  \"est_duration_min\": 30\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/routes",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "routes"
-              ]
-            },
-            "description": "BUTUH ROLE ADMIN — pakai {{access_token_admin}}."
-          },
-          "response": []
-        },
-        {
-          "name": "GET List Routes",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/routes",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "routes"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Buses by Route",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/routes/{{route_id}}/buses",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "routes",
-                "{{route_id}}",
-                "buses"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Create GPS Log",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 35\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/gps",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "gps"
-              ]
-            },
-            "description": "PRASYARAT: bus_id dan route_id di atas harus sudah dibuat (jalankan 'Create Bus' dan 'Create Route' duluan). Event ini publish ke RabbitMQ 'gps.update', dikonsumsi python-ml."
-          },
-          "response": []
-        },
-        {
-          "name": "POST IoT GPS Update (Normal - build histori)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 40,\n  \"heading\": 90,\n  \"passenger_count\": 20,\n  \"engine_temp\": 85\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/iot/gps",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "iot",
-                "gps"
-              ]
-            },
-            "description": "Kirim minimal 3x untuk build histori speed sebelum anomaly check aktif. Pakai access_token_iot. Endpoint ini publish ke RabbitMQ 'gps.update' → dikonsumsi python-ml consumer → anomaly detection model3."
-          },
-          "response": []
-        },
-        {
-          "name": "POST IoT GPS Update (ANOMALI - speed tinggi)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 150,\n  \"heading\": 90,\n  \"passenger_count\": 80,\n  \"engine_temp\": 120\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/iot/gps",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "iot",
-                "gps"
-              ]
-            },
-            "description": "Kirim SETELAH 3x request normal di atas untuk trigger anomaly. Speed 150 + passenger 80 + engine_temp 120 akan terdeteksi sebagai anomali High/Medium → publish 'anomaly.alert' ke RabbitMQ → AnomalyConsumer.php → notifikasi ke penumpang."
-          },
-          "response": []
-        },
-        {
-          "name": "POST IoT Passenger Count (trigger ML Crowd)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"current_load\": 25,\n  \"bus_id\": {{bus_id}},\n  \"weather\": 0,\n  \"is_holiday\": 0\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/iot/passengers",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "iot",
-                "passengers"
-              ]
-            },
-            "description": "Kirim data penumpang dari IoT halte. Publish ke RabbitMQ 'passenger.boarded' → dikonsumsi python-ml → crowd prediction model2. Pakai access_token_iot."
-          },
-          "response": []
-        },
-        {
-          "name": "GET GPS History by Bus",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/gps/buses/{{bus_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "gps",
-                "buses",
-                "{{bus_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Create Incident",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"type\": \"breakdown\",\n  \"severity\": \"medium\",\n  \"description\": \"Ban bocor\"\n}"
-            },
-            "url": {
-              "raw": "{{fleet_direct_url}}/api/incidents",
-              "host": [
-                "{{fleet_direct_url}}"
-              ],
-              "path": [
-                "api",
-                "incidents"
-              ]
-            },
-            "description": "KNOWN GAP: /api/incidents tidak ada di proxyRoutes.js gateway, jadi akses LANGSUNG ke php-fleet port 8001."
-          },
-          "response": []
-        },
-        {
-          "name": "GET List Incidents",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{fleet_direct_url}}/api/incidents",
-              "host": [
-                "{{fleet_direct_url}}"
-              ],
-              "path": [
-                "api",
-                "incidents"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "PATCH Resolve Incident",
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "url": {
-              "raw": "{{fleet_direct_url}}/api/incidents/1/resolve",
-              "host": [
-                "{{fleet_direct_url}}"
-              ],
-              "path": [
-                "api",
-                "incidents",
-                "1",
-                "resolve"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "03 - Passenger Service (lewat Gateway, port 9000)",
-      "item": [
-        {
-          "name": "POST Register Passenger (Publik)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 201) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('passenger_id', json.data.id);",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"testering@example.com\",\n  \"password\": \"secret123\"\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/passengers",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "passengers"
-              ]
-            },
-            "description": "Tidak perlu token. Field wajib: name, email (format valid), password."
-          },
-          "response": []
-        },
-        {
-          "name": "GET Passenger by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/passengers/{{passenger_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "passengers",
-                "{{passenger_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Passenger by Card Number (IoT)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/passengers/by-card/{{card_number}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "passengers",
-                "by-card",
-                "{{card_number}}"
-              ]
-            },
-            "description": "card_number kosong sampai di-set lewat data lain — sesuaikan kalau passenger sudah punya kartu."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Buy Ticket",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"route_id\": {{route_id}},\n  \"origin_stop_id\": 1,\n  \"dest_stop_id\": 2,\n  \"price\": 3000\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/tickets",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "tickets"
-              ]
-            },
-            "description": "PRASYARAT WAJIB: jalankan 'POST Get Token (password grant - real user_id)' di folder 01 dulu — JANGAN pakai token dari client_credentials grant. Gateway inject X-User-Id dari hasil introspect token; untuk client_credentials, user_id selalu 0 (falsy), sehingga X-User-Id tidak pernah di-set dan endpoint ini selalu balas 401."
-          },
-          "response": []
-        },
-        {
-          "name": "GET My Tickets",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/tickets",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "tickets"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Has Active Ticket (IoT)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/tickets/active/{{passenger_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "tickets",
-                "active",
-                "{{passenger_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Tap-In (Check and Create)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"card_number\": \"{{card_number}}\",\n  \"origin_stop_id\": 1,\n  \"dest_stop_id\": 2\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/tickets/check-and-create",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "tickets",
-                "check-and-create"
-              ]
-            },
-            "description": "Tap-in IoT halte: cek saldo & buat tiket otomatis, harga dihitung dari jarak antar halte."
-          },
-          "response": []
-        },
-        {
-          "name": "POST Tap-Out (Checkout)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"card_number\": \"{{card_number}}\",\n  \"exit_stop_id\": 2\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/tickets/checkout",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "tickets",
-                "checkout"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Notifications",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/notifications",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "notifications"
-              ]
-            },
-            "description": "Sudah diperbaiki: gateway sekarang proxy ke php-passenger (sebelumnya salah ke host 'php-notification' yang tidak ada)."
-          },
-          "response": []
-        },
-        {
-          "name": "PATCH Mark Notification Read",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_user}}"
-              }
-            ],
-            "url": {
-              "raw": "{{gateway_url}}/api/notifications/1/read",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "notifications",
-                "1",
-                "read"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "04 - Stop Service (lewat Gateway, port 9000)",
-      "item": [
-        {
-          "name": "GET List Stops",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/stops",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Stop Status (Sepi/Normal/Padat/Penuh)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/{{stop_id}}/status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "{{stop_id}}",
-                "status"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Stops by Route except (IoT)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/route/{{route_id}}/except/{{stop_id}}",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "route",
-                "{{route_id}}",
-                "except",
-                "{{stop_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Bus Status at Stop (IoT)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/{{stop_id}}/bus-status",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "{{stop_id}}",
-                "bus-status"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "PUT Bus Arrival at Stop",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}}\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/{{stop_id}}/bus-arrival",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "{{stop_id}}",
-                "bus-arrival"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "PUT Bus Departure from Stop",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/{{stop_id}}/bus-departure",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "{{stop_id}}",
-                "bus-departure"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST IoT Update Current Load",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"current_load\": 15\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/api/stops/passenger-count",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "stops",
-                "passenger-count"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Passenger Boarding Count",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"bus_id\": {{bus_id}},\n  \"boarded\": 5,\n  \"alighted\": 2\n}"
-            },
-            "url": {
-              "raw": "{{stop_direct_url}}/api/passengers/count",
-              "host": [
-                "{{stop_direct_url}}"
-              ],
-              "path": [
-                "api",
-                "passengers",
-                "count"
-              ]
-            },
-            "description": "KNOWN GAP: path ini collision dengan rule gateway '/api/passengers' (yang menuju php-passenger). Akses LANGSUNG ke php-stop port 8020. Endpoint ini publish event 'passenger.boarded' ke RabbitMQ, dikonsumsi python-ml."
-          },
-          "response": []
-        },
-        {
-          "name": "GET Active Alerts (Direct)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/api/alerts",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "api",
-                "alerts"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "05 - ML Service (lewat Gateway, port 9000)",
-      "item": [
-        {
-          "name": "POST Predict Delay",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"hour\": 8,\n  \"day_of_week\": 1,\n  \"route_id\": \"9\",\n  \"weather\": 0\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/predict/delay",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "predict",
-                "delay"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Predict Crowd",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"hour\": 17,\n  \"day_of_week\": 4,\n  \"weather\": 1,\n  \"prev_count\": 12,\n  \"is_holiday\": false\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/predict/crowd",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "predict",
-                "crowd"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "POST Detect Anomaly",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token_iot}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"speed_kmh\": 45.5,\n  \"passenger_count\": 30,\n  \"engine_temp_c\": 85.2,\n  \"rolling_mean_1h\": 42.0,\n  \"z_score\": 1.2\n}"
-            },
-            "url": {
-              "raw": "{{gateway_url}}/detect/anomaly",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "detect",
-                "anomaly"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "06 - Monitoring & Infra",
-      "item": [
-        {
-          "name": "GET Prometheus Targets",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://{{base_ip}}:9090/api/v1/targets",
-              "protocol": "http",
-              "host": [
-                "{{base_ip}}"
-              ],
-              "port": "9090",
-              "path": [
-                "api",
-                "v1",
-                "targets"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET RabbitMQ Queue List (Management API)",
-          "request": {
-            "auth": {
-              "type": "basic",
-              "basic": [
-                {
-                  "key": "username",
-                  "value": "admin",
-                  "type": "string"
-                },
-                {
-                  "key": "password",
-                  "value": "SmartRabbit2025!",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://{{base_ip}}:15672/api/queues",
-              "protocol": "http",
-              "host": [
-                "{{base_ip}}"
-              ],
-              "port": "15672",
-              "path": [
-                "api",
-                "queues"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "GET Gateway Metrics (Prometheus format)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{gateway_url}}/metrics",
-              "host": [
-                "{{gateway_url}}"
-              ],
-              "path": [
-                "metrics"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
-        "exec": [
-          ""
-        ]
-      }
-    }
-  ],
   "variable": [
     {
       "key": "base_ip",
@@ -1520,27 +12,27 @@
     },
     {
       "key": "gateway_url",
-      "value": "http://{{base_ip}}:9000"
+      "value": "http://103.147.92.135:9000"
     },
     {
       "key": "oauth_url",
-      "value": "http://{{base_ip}}:3002"
+      "value": "http://103.147.92.135:3002"
     },
     {
       "key": "fleet_direct_url",
-      "value": "http://{{base_ip}}:8001"
+      "value": "http://103.147.92.135:8001"
     },
     {
       "key": "passenger_direct_url",
-      "value": "http://{{base_ip}}:8000"
+      "value": "http://103.147.92.135:8000"
     },
     {
       "key": "stop_direct_url",
-      "value": "http://{{base_ip}}:8020"
+      "value": "http://103.147.92.135:8002"
     },
     {
       "key": "ml_direct_url",
-      "value": "http://{{base_ip}}:5000"
+      "value": "http://103.147.92.135:5000"
     },
     {
       "key": "client_id",
@@ -1556,6 +48,10 @@
     },
     {
       "key": "access_token_user",
+      "value": ""
+    },
+    {
+      "key": "access_token_admin",
       "value": ""
     },
     {
@@ -1577,10 +73,1280 @@
     {
       "key": "card_number",
       "value": "CARD-001"
+    }
+  ],
+  "item": [
+    {
+      "name": "S0 - Health Checks (Semua Service)",
+      "item": [
+        {
+          "name": "GET Gateway Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/health",
+              "host": [
+                "{{gateway_url}}/health"
+              ]
+            },
+            "description": "Cek oauth_server, php_passenger, php_stop, php_fleet — semua harus UP."
+          }
+        },
+        {
+          "name": "GET OAuth Server Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/health",
+              "host": [
+                "{{oauth_url}}/health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Fleet Service Health (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_direct_url}}/health",
+              "host": [
+                "{{fleet_direct_url}}/health"
+              ]
+            },
+            "description": "Cek database.connected dan rabbitmq.connected harus true."
+          }
+        },
+        {
+          "name": "GET Passenger Service Health (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{passenger_direct_url}}/health",
+              "host": [
+                "{{passenger_direct_url}}/health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Stop Service Health (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{stop_direct_url}}/health",
+              "host": [
+                "{{stop_direct_url}}/health"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET ML Service Health (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ml_direct_url}}/health",
+              "host": [
+                "{{ml_direct_url}}/health"
+              ]
+            },
+            "description": "Cek model1, model2, model3 semua status LOADED."
+          }
+        }
+      ]
     },
     {
-      "key": "access_token_admin",
-      "value": ""
+      "name": "S1 - OAuth (Wajib Sebelum Testing Lain)",
+      "item": [
+        {
+          "name": "POST Get Token — User (password grant)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/oauth/token",
+              "host": [
+                "{{oauth_url}}/oauth/token"
+              ]
+            },
+            "description": "Simpan ke access_token_user. Pakai untuk endpoint passenger. User: budi@/siti@/ahmad@/dewi@/rizky@mail.com, password 123456.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "budi@mail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123456",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "smart-transport-app",
+                  "type": "text"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "smart-transport-secret",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Get Token — Admin (password grant)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/oauth/token",
+              "host": [
+                "{{oauth_url}}/oauth/token"
+              ]
+            },
+            "description": "Simpan ke access_token_admin. Pakai untuk POST/PATCH/DELETE bus, route, incident.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "admin@mail.com",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "123456",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "smart-transport-app",
+                  "type": "text"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "smart-transport-secret",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Get Token — IoT (client_credentials)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/oauth/token",
+              "host": [
+                "{{oauth_url}}/oauth/token"
+              ]
+            },
+            "description": "Simpan ke access_token_iot. user_id selalu 0. Pakai untuk endpoint IoT: /iot/gps, /iot/passengers, ML endpoints.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{client_secret}}",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Introspect Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/oauth/introspect",
+              "host": [
+                "{{oauth_url}}/oauth/introspect"
+              ]
+            },
+            "description": "Validasi token. Expected: {active:true, user_id:1, ...}",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{access_token_user}}",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Revoke Token (jalankan TERAKHIR)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{oauth_url}}/oauth/revoke",
+              "host": [
+                "{{oauth_url}}/oauth/revoke"
+              ]
+            },
+            "description": "Invalidate token. Jalankan di akhir sesi testing.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "token",
+                  "value": "{{access_token_user}}",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "S2 - Fleet Service (via Gateway :9000)",
+      "item": [
+        {
+          "name": "GET List Buses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/buses",
+              "host": [
+                "{{gateway_url}}/api/buses"
+              ]
+            },
+            "description": "Publik. 30 data seed tersedia (id 1-30)."
+          }
+        },
+        {
+          "name": "GET Bus by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/buses/{bus_id}",
+              "host": [
+                "{{gateway_url}}/api/buses/{bus_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Bus Location",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/buses/{bus_id}/location",
+              "host": [
+                "{{gateway_url}}/api/buses/{bus_id}/location"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Create Bus",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/buses",
+              "host": [
+                "{{gateway_url}}/api/buses"
+              ]
+            },
+            "description": "Butuh role admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plate_number\": \"B9999TEST\",\n  \"capacity\": 40,\n  \"status\": \"active\",\n  \"driver_name\": \"Test Driver\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH Update Bus",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/buses/{bus_id}",
+              "host": [
+                "{{gateway_url}}/api/buses/{bus_id}"
+              ]
+            },
+            "description": "Butuh role admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driver_name\": \"Updated Driver\",\n  \"status\": \"maintenance\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET List Routes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/routes",
+              "host": [
+                "{{gateway_url}}/api/routes"
+              ]
+            },
+            "description": "Publik. 10 data seed tersedia (id 1-10)."
+          }
+        },
+        {
+          "name": "GET Buses by Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/routes/{route_id}/buses",
+              "host": [
+                "{{gateway_url}}/api/routes/{route_id}/buses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Create Route",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/routes",
+              "host": [
+                "{{gateway_url}}/api/routes"
+              ]
+            },
+            "description": "Butuh role admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rute Test A-B\",\n  \"origin\": \"Halte A\",\n  \"destination\": \"Halte B\",\n  \"total_stops\": 5,\n  \"distance_km\": 12.5,\n  \"est_duration_min\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET GPS History by Bus",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/gps/buses/{bus_id}",
+              "host": [
+                "{{gateway_url}}/api/gps/buses/{bus_id}"
+              ]
+            },
+            "description": "200 data GPS dummy sudah ada di seed."
+          }
+        },
+        {
+          "name": "POST GPS Log (manual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/gps",
+              "host": [
+                "{{gateway_url}}/api/gps"
+              ]
+            },
+            "description": "Publish ke RabbitMQ gps.update → dikonsumsi python-ml.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 35\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST IoT GPS Update — Normal (3x dulu)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/iot/gps",
+              "host": [
+                "{{gateway_url}}/iot/gps"
+              ]
+            },
+            "description": "Kirim minimal 3x untuk build histori speed sebelum anomaly check aktif. Path rewrite: /iot/gps → /api/gps.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 40,\n  \"heading\": 90,\n  \"passenger_count\": 20,\n  \"engine_temp\": 85\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST IoT GPS Update — ANOMALI (speed 150)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/iot/gps",
+              "host": [
+                "{{gateway_url}}/iot/gps"
+              ]
+            },
+            "description": "Kirim SETELAH 3x request normal. Speed 150 + passenger 80 + engine_temp 120 → trigger anomaly detection.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"route_id\": {{route_id}},\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"speed_kmh\": 150,\n  \"heading\": 90,\n  \"passenger_count\": 80,\n  \"engine_temp\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST IoT Passenger Count",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/iot/passengers",
+              "host": [
+                "{{gateway_url}}/iot/passengers"
+              ]
+            },
+            "description": "Path rewrite: /iot/passengers → /api/stops/passenger-count. Publish ke RabbitMQ passenger.boarded → python-ml crowd prediction.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"current_load\": 25,\n  \"bus_id\": {{bus_id}},\n  \"weather\": 0,\n  \"is_holiday\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET List Incidents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/incidents",
+              "host": [
+                "{{gateway_url}}/api/incidents"
+              ]
+            },
+            "description": "Sudah via gateway (proxyRoutes.js terbaru)."
+          }
+        },
+        {
+          "name": "POST Create Incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/incidents",
+              "host": [
+                "{{gateway_url}}/api/incidents"
+              ]
+            },
+            "description": "Butuh role admin.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"type\": \"breakdown\",\n  \"severity\": \"medium\",\n  \"description\": \"Ban bocor di jalan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PATCH Resolve Incident",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/incidents/1/resolve",
+              "host": [
+                "{{gateway_url}}/api/incidents/1/resolve"
+              ]
+            },
+            "description": "Butuh role admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "S3 - Passenger Service (via Gateway :9000)",
+      "item": [
+        {
+          "name": "POST Register Passenger (Publik)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/passengers",
+              "host": [
+                "{{gateway_url}}/api/passengers"
+              ]
+            },
+            "description": "Tidak perlu token. Publik.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User Demo\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET Passenger by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/passengers/{passenger_id}",
+              "host": [
+                "{{gateway_url}}/api/passengers/{passenger_id}"
+              ]
+            },
+            "description": "passenger_id 1-5 sudah ada di seed."
+          }
+        },
+        {
+          "name": "GET Passenger by Card (IoT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/passengers/by-card/{card_number}",
+              "host": [
+                "{{gateway_url}}/api/passengers/by-card/{card_number}"
+              ]
+            },
+            "description": "Dipakai IoT halte untuk lookup penumpang saat tap."
+          }
+        },
+        {
+          "name": "POST Buy Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/tickets",
+              "host": [
+                "{{gateway_url}}/api/tickets"
+              ]
+            },
+            "description": "WAJIB pakai access_token_user (password grant), BUKAN token IoT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"route_id\": {{route_id}},\n  \"origin_stop_id\": 1,\n  \"dest_stop_id\": 2,\n  \"price\": 3000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET My Tickets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/tickets",
+              "host": [
+                "{{gateway_url}}/api/tickets"
+              ]
+            },
+            "description": "5 data ticket seed sudah ada (id 1-5)."
+          }
+        },
+        {
+          "name": "GET Has Active Ticket (IoT)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/tickets/active/{passenger_id}",
+              "host": [
+                "{{gateway_url}}/api/tickets/active/{passenger_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Tap-In (check-and-create)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/tickets/check-and-create",
+              "host": [
+                "{{gateway_url}}/api/tickets/check-and-create"
+              ]
+            },
+            "description": "Tap-in di halte: cek saldo & buat tiket otomatis.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"{{card_number}}\",\n  \"origin_stop_id\": 1,\n  \"dest_stop_id\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST Tap-Out (checkout)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/tickets/checkout",
+              "host": [
+                "{{gateway_url}}/api/tickets/checkout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_number\": \"{{card_number}}\",\n  \"exit_stop_id\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications",
+              "host": [
+                "{{gateway_url}}/api/notifications"
+              ]
+            }
+          }
+        },
+        {
+          "name": "PATCH Mark Notification Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_user}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/notifications/1/read",
+              "host": [
+                "{{gateway_url}}/api/notifications/1/read"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "S4 - Stop Service (via Gateway :9000)",
+      "item": [
+        {
+          "name": "GET List Stops",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops",
+              "host": [
+                "{{gateway_url}}/api/stops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Stop Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/{stop_id}/status",
+              "host": [
+                "{{gateway_url}}/api/stops/{stop_id}/status"
+              ]
+            },
+            "description": "Return: Sepi / Normal / Padat / Penuh berdasarkan current_load."
+          }
+        },
+        {
+          "name": "GET Stops by Route except (IoT)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/route/{route_id}/except/{stop_id}",
+              "host": [
+                "{{gateway_url}}/api/stops/route/{route_id}/except/{stop_id}"
+              ]
+            },
+            "description": "Dipakai perangkat IoT halte untuk navigasi ke halte lain di rute yang sama."
+          }
+        },
+        {
+          "name": "GET Bus Status at Stop (IoT)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/{stop_id}/bus-status",
+              "host": [
+                "{{gateway_url}}/api/stops/{stop_id}/bus-status"
+              ]
+            },
+            "description": "Cek apakah sedang ada bus di halte ini."
+          }
+        },
+        {
+          "name": "PUT Bus Arrival at Stop",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/{stop_id}/bus-arrival",
+              "host": [
+                "{{gateway_url}}/api/stops/{stop_id}/bus-arrival"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "PUT Bus Departure from Stop",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/{stop_id}/bus-departure",
+              "host": [
+                "{{gateway_url}}/api/stops/{stop_id}/bus-departure"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST IoT Update Current Load",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/api/stops/passenger-count",
+              "host": [
+                "{{gateway_url}}/api/stops/passenger-count"
+              ]
+            },
+            "description": "Update kepadatan halte dari sensor IoT.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"current_load\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST Passenger Boarding Count (direct)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{stop_direct_url}}/api/passengers/count",
+              "host": [
+                "{{stop_direct_url}}/api/passengers/count"
+              ]
+            },
+            "description": "Akses langsung ke php-stop:8002 karena path /api/passengers collision dengan rule gateway ke php-passenger.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"bus_id\": {{bus_id}},\n  \"boarded\": 5,\n  \"alighted\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET Active Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/alerts",
+              "host": [
+                "{{gateway_url}}/api/alerts"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "S5 - ML Service (via Gateway :9000)",
+      "item": [
+        {
+          "name": "POST Predict Delay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/predict/delay",
+              "host": [
+                "{{gateway_url}}/predict/delay"
+              ]
+            },
+            "description": "Prediksi keterlambatan bus. Model1.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bus_id\": {{bus_id}},\n  \"hour\": 8,\n  \"day_of_week\": 1,\n  \"route_id\": \"{{route_id}}\",\n  \"weather\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST Predict Crowd",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/predict/crowd",
+              "host": [
+                "{{gateway_url}}/predict/crowd"
+              ]
+            },
+            "description": "Prediksi kepadatan penumpang di halte. Model2.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stop_id\": {{stop_id}},\n  \"hour\": 17,\n  \"day_of_week\": 4,\n  \"weather\": 1,\n  \"prev_count\": 12,\n  \"is_holiday\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST Detect Anomaly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token_iot}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gateway_url}}/detect/anomaly",
+              "host": [
+                "{{gateway_url}}/detect/anomaly"
+              ]
+            },
+            "description": "Deteksi anomali GPS/kecepatan/suhu mesin. Model3.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"speed_kmh\": 45.5,\n  \"passenger_count\": 30,\n  \"engine_temp_c\": 85.2,\n  \"rolling_mean_1h\": 42.0,\n  \"z_score\": 1.2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "S6 - Monitoring & Infra",
+      "item": [
+        {
+          "name": "GET Gateway Metrics (Prometheus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/metrics",
+              "host": [
+                "{{gateway_url}}/metrics"
+              ]
+            },
+            "description": "Format Prometheus. Di-scrape oleh prometheus pod."
+          }
+        },
+        {
+          "name": "GET Prometheus Targets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://103.147.92.135:9090/api/v1/targets",
+              "host": [
+                "http://103.147.92.135:9090/api/v1/targets"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET RabbitMQ Queues (Management API)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://103.147.92.135:15672/api/queues",
+              "host": [
+                "http://103.147.92.135:15672/api/queues"
+              ]
+            },
+            "description": "Basic Auth: admin / SmartRabbit2025!",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "admin",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "SmartRabbit2025!",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Fleet Metrics (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{fleet_direct_url}}/metrics",
+              "host": [
+                "{{fleet_direct_url}}/metrics"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Passenger Metrics (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{passenger_direct_url}}/metrics",
+              "host": [
+                "{{passenger_direct_url}}/metrics"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET Stop Metrics (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{stop_direct_url}}/metrics",
+              "host": [
+                "{{stop_direct_url}}/metrics"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET ML Metrics (direct)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{ml_direct_url}}/metrics",
+              "host": [
+                "{{ml_direct_url}}/metrics"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
