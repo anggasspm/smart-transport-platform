@@ -46,9 +46,9 @@ $routes->group('api', function ($routes) {
 
     // Incident endpoints
     $routes->get('incidents',               'Api\IncidentController::index');
-    $routes->post('incidents',              'Api\IncidentController::create');
+    $routes->post('incidents',              'Api\IncidentController::create', ['filter' => 'role:admin']);
     $routes->get('incidents/(:num)',        'Api\IncidentController::show/$1');
-    $routes->patch('incidents/(:num)',      'Api\IncidentController::update/$1');
-    $routes->patch('incidents/(:num)/resolve', 'Api\IncidentController::resolve/$1');
+    $routes->patch('incidents/(:num)',      'Api\IncidentController::update/$1', ['filter' => 'role:admin']);
+    $routes->patch('incidents/resolve/(:num)', 'Api\IncidentController::resolve/$1', ['filter' => 'role:admin']);
     $routes->delete('incidents/(:num)',     'Api\IncidentController::delete/$1');
 });

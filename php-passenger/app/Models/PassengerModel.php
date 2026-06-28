@@ -16,7 +16,9 @@ class PassengerModel extends Model
 
     public function createPassenger(array $data): array
     {
-        $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT);
+        $hash = password_hash($data['password'], PASSWORD_BCRYPT);
+        $data['password'] = str_replace('$2y$', '$2b$', $hash);
+
         $id = $this->insert($data, true);
         return $this->findSafe($id);
     }
