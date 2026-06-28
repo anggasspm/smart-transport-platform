@@ -3,6 +3,8 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const { publishBusCommand } = require('../services/rabbitmqPublisher');
 
+router.use(express.json());
+
 router.post('/api/buses/:id/command', authMiddleware, async (req, res) => {
     const busId = parseInt(req.params.id, 10);
     const { command } = req.body;
